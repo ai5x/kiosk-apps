@@ -1,0 +1,16 @@
+# Local environment (contains secrets)
+.env.local
+
+# Log files
+*.log
+
+# Backup files
+*.backup.*
+
+# Temporary files
+*.tmp
+.tmp/
+
+# OS files
+.DS_Store
+Thumbs.db

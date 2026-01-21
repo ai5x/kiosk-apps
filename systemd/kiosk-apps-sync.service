@@ -1,0 +1,24 @@
+[Unit]
+Description=Kiosk-Apps Auto-Update Service
+Documentation=https://github.com/ai5x/kiosk-apps
+After=network-online.target
+Wants=network-online.target
+Before=lightdm.service
+
+[Service]
+Type=oneshot
+User=root
+Environment="GITHUB_TOKEN="
+EnvironmentFile=-/opt/kiosk-apps/.env.local
+ExecStart=/opt/kiosk-apps/scripts/sync-and-update.sh
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=600
+RemainAfterExit=yes
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target

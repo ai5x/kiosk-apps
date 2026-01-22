@@ -302,8 +302,9 @@ main() {
         sleep 2
 
         # Restart display manager (which will restart kiosk)
-        systemctl restart lightdm
-        log_info "✓ Display manager restarted"
+        # Use --no-block to avoid deadlock with boot-time dependencies
+        systemctl --no-block restart lightdm
+        log_info "✓ Display manager restart initiated"
 
         log_info "Kiosk should now be running with updated configuration"
     else

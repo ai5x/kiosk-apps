@@ -128,14 +128,14 @@ main() {
     log_info "Fetching latest changes from $REPO_URL..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
-        if timeout 30 git fetch "$REPO_URL_WITH_TOKEN" main 2>&1 | tee -a "$LOG_FILE"; then
+        if timeout 30 git fetch "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
             log_info "✓ Fetch successful (using token)"
         else
             log_warn "Fetch failed - continuing with current version"
             exec "${REPO_DIR}/scripts/apply-updates.sh"
         fi
     else
-        if timeout 30 git fetch origin main 2>&1 | tee -a "$LOG_FILE"; then
+        if timeout 30 git fetch origin master 2>&1 | tee -a "$LOG_FILE"; then
             log_info "✓ Fetch successful"
         else
             log_warn "Fetch failed - continuing with current version"
@@ -144,14 +144,14 @@ main() {
     fi
 
     # Check if there are updates
-    REMOTE_COMMIT=$(git rev-parse origin/main)
+    REMOTE_COMMIT=$(git rev-parse origin/master)
     log_info "Remote commit: ${REMOTE_COMMIT:0:8}"
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
     else
         log_info "Updates available - pulling changes..."
-        if git reset --hard origin/main 2>&1 | tee -a "$LOG_FILE"; then
+        if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             log_info "✓ Updated to commit: ${NEW_COMMIT:0:8}"
             log_info "Changes:"

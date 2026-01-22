@@ -112,19 +112,37 @@ git push
 # On next boot, apply-updates.sh will deploy new scripts to /opt/kiosk/
 ```
 
-### Trigger Package Updates
+### Install Missing Packages
 
 ```bash
-# Create update-packages.txt with package names
-echo "chromium" > update-packages.txt
-echo "xserver-xorg" >> update-packages.txt
+# Add packages to config/install-packages.txt (permanent)
+echo "# Required packages" > config/install-packages.txt
+echo "xinput" >> config/install-packages.txt
+echo "some-other-package" >> config/install-packages.txt
 
-git add update-packages.txt
-git commit -m "Update Chromium and X server"
+git add config/install-packages.txt
+git commit -m "Add required packages for kiosks"
 git push
 
-# On next boot, apt-get will update these packages
+# On next boot, apt-get install will install these packages
+# These packages are checked on every boot (persistent file)
 ```
+
+### Trigger Package Updates/Upgrades
+
+```bash
+# Create update-packages.txt to trigger full apt upgrade (one-time)
+touch config/update-packages.txt
+
+git add config/update-packages.txt
+git commit -m "Trigger package upgrade on all kiosks"
+git push
+
+# On next boot, apt-get upgrade will run
+# File is deleted after successful upgrade
+```
+
+**Note:** `install-packages.txt` is persistent and checks/installs packages on every boot. `update-packages.txt` is a one-time trigger that gets deleted after running.
 
 ## Auto-Recovery System
 
@@ -312,6 +330,10 @@ sudo systemctl restart lightdm
 
 **Touchscreen not calibrated:**
 ```bash
+# Check if xinput is installed (required for touchscreen transformation)
+which xinput
+# If missing, add to config/install-packages.txt and reboot
+
 # Check if xinput found devices
 DISPLAY=:0 xinput list | grep -i touch
 
@@ -320,6 +342,17 @@ DISPLAY=:0 xinput list-props <device-id> | grep "Coordinate Transformation"
 
 # Check autostart log for errors
 cat /tmp/openbox-autostart.log
+
+# Expected matrix for portrait (90° clockwise):
+# 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 1.000000
+
+# If xinput command not found during boot:
+# Add xinput to config/install-packages.txt
+echo "xinput" >> config/install-packages.txt
+git add config/install-packages.txt
+git commit -m "Add xinput package for touchscreen support"
+git push
+# Reboot kiosk to install
 ```
 
 ## Repository Structure
@@ -328,6 +361,8 @@ cat /tmp/openbox-autostart.log
 kiosk-apps/
 ├── config/
 │   ├── .env                              # Main configuration
+│   ├── install-packages.txt              # Packages to install (persistent)
+│   ├── update-packages.txt               # Trigger for apt upgrade (one-time, optional)
 │   ├── xorg-modesetting.conf            # X server config
 │   ├── openbox-autostart-landscape      # Landscape rotation
 │   ├── openbox-autostart-portrait       # Portrait rotation (90°)
@@ -340,6 +375,39 @@ kiosk-apps/
 │   └── kiosk-apps-sync.service          # Systemd service definition
 └── README.md                            # User documentation
 ```
+
+## Common Issues & Recent Fixes
+
+### Issue: Touchscreen not responding in portrait mode
+**Symptoms:** Display rotates correctly but touch input is misaligned
+**Cause:** xinput package missing - transformation commands fail silently
+**Fix:** Added xinput to config/install-packages.txt
+**Commit:** 7f738cc (2026-01-22)
+
+### Issue: Kiosk hangs at Plymouth screen on boot
+**Symptoms:** Boot process stops at splash screen, no login prompt
+**Cause:** Circular dependency - kiosk-apps-sync.service has Before=lightdm but calls systemctl restart lightdm (blocking)
+**Fix:** Added --no-block flag to systemctl restart lightdm
+**Commit:** 0eb7190 (2026-01-22)
+
+### Issue: Git fetch fails with "couldn't find remote ref main"
+**Symptoms:** Sync service runs but no updates applied, logs show fatal git error
+**Cause:** Repository uses 'master' branch but scripts referenced 'main'
+**Fix:** Changed all git fetch/pull commands from main to master
+**Commit:** 0eb7190 (2026-01-22)
+
+### Issue: Can't see provisioning progress on first boot
+**Symptoms:** Console only shows cloud-init, no indication of kiosk setup progress
+**Cause:** systemd services output to journal only, not console
+**Fix:** Changed StandardOutput=journal+console in both services
+**Commit:** 58b10c3 (2026-01-22)
+
+### Issue: Kiosk-apps clone fails during provisioning (private repo)
+**Symptoms:** First boot provisioning completes but OTA updates don't work
+**Cause:** Repository was private without token, initial clone failed
+**Solution:** Made repository public OR add token to /etc/kiosk-apps/github-token
+**Auto-recovery:** Service auto-clones repo on next boot if missing
+**Commit:** d31a152 (2026-01-22)
 
 ## Related Projects
 

@@ -1,0 +1,6 @@
+# Packages to install on kiosk
+# One package per line
+# These will be installed via apt-get install
+
+# xinput - Required for touchscreen coordinate transformation
+xinput

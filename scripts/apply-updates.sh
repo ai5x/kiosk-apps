@@ -128,17 +128,53 @@ apply_script_updates() {
 apply_package_updates() {
     log_section "Package Updates"
 
+    local packages_changed=0
+
+    # Check if package installation is requested
+    if [ -f "${REPO_DIR}/config/install-packages.txt" ]; then
+        log_info "Package installation requested"
+
+        # Read packages to install (skip comments and empty lines)
+        PACKAGES=$(grep -v '^#' "${REPO_DIR}/config/install-packages.txt" | grep -v '^$' | xargs)
+
+        if [ -n "$PACKAGES" ]; then
+            log_info "Installing packages: $PACKAGES"
+
+            # Update package lists
+            log_info "Updating package lists..."
+            if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
+                log_info "✓ Package lists updated"
+            else
+                log_warn "Failed to update package lists"
+                return 1
+            fi
+
+            # Install packages
+            if DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES 2>&1 | tee -a "$LOG_FILE"; then
+                log_info "✓ Packages installed: $PACKAGES"
+                packages_changed=1
+            else
+                log_error "Package installation failed"
+                return 1
+            fi
+        else
+            log_info "✓ No packages to install"
+        fi
+    fi
+
     # Check if package updates are requested
     if [ -f "${REPO_DIR}/config/update-packages.txt" ]; then
         log_info "Package update requested"
 
-        # Update package lists
-        log_info "Updating package lists..."
-        if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
-            log_info "✓ Package lists updated"
-        else
-            log_warn "Failed to update package lists"
-            return 1
+        # Update package lists if not already done
+        if [ $packages_changed -eq 0 ]; then
+            log_info "Updating package lists..."
+            if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
+                log_info "✓ Package lists updated"
+            else
+                log_warn "Failed to update package lists"
+                return 1
+            fi
         fi
 
         # Upgrade packages
@@ -160,7 +196,9 @@ apply_package_updates() {
             return 1
         fi
     else
-        log_info "✓ No package updates requested"
+        if [ $packages_changed -eq 0 ]; then
+            log_info "✓ No package updates requested"
+        fi
     fi
 
     return 0

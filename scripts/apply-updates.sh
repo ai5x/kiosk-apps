@@ -315,6 +315,19 @@ main() {
 
     log_section "Update Complete"
     log_info "Kiosk update process finished successfully"
+
+    # Console completion message
+    echo ""
+    echo "========================================================"
+    echo "  KIOSK-APPS UPDATE COMPLETE"
+    echo "========================================================"
+    if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ]; then
+        echo "  Status: Configuration updated, kiosk restarted"
+    else
+        echo "  Status: No changes detected, kiosk running"
+    fi
+    echo "========================================================"
+    echo ""
 }
 
 # Run main function

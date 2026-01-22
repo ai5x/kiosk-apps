@@ -53,6 +53,15 @@ main() {
         exit 1
     fi
 
+    # Console startup message
+    echo ""
+    echo "========================================================"
+    echo "  KIOSK-APPS AUTO-UPDATE"
+    echo "========================================================"
+    echo "  Checking for configuration updates..."
+    echo "========================================================"
+    echo ""
+
     log_section "Kiosk-Apps Auto-Update"
     log_info "Starting sync and update process..."
 
@@ -156,6 +165,10 @@ main() {
     # Execute apply-updates.sh to apply configuration changes
     log_section "Applying Updates"
     log_info "Running apply-updates.sh to apply configuration and package updates..."
+
+    echo ""
+    echo ">>> Applying kiosk configuration updates..."
+    echo ""
 
     exec "${REPO_DIR}/scripts/apply-updates.sh"
 }

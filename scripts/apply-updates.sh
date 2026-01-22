@@ -298,6 +298,37 @@ apply_display_config() {
         log_info "✓ Openbox autostart unchanged"
     fi
 
+    # Deploy touchscreen transformation script (for hot-plug support)
+    if [ -f "${REPO_DIR}/scripts/apply-touchscreen-transform.sh" ]; then
+        if ! diff -q "${REPO_DIR}/scripts/apply-touchscreen-transform.sh" "/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh" >/dev/null 2>&1; then
+            log_info "Updating touchscreen transformation script..."
+            cp "${REPO_DIR}/scripts/apply-touchscreen-transform.sh" "/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"
+            chmod +x "/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"
+            log_info "✓ Touchscreen transformation script updated"
+        else
+            log_info "✓ Touchscreen transformation script unchanged"
+        fi
+    fi
+
+    # Deploy udev rule for touchscreen hot-plug
+    if [ -f "${REPO_DIR}/config/99-touchscreen-transform.rules" ]; then
+        if ! diff -q "${REPO_DIR}/config/99-touchscreen-transform.rules" "/etc/udev/rules.d/99-touchscreen-transform.rules" >/dev/null 2>&1; then
+            log_info "Updating udev rule for touchscreen hot-plug..."
+            cp "${REPO_DIR}/config/99-touchscreen-transform.rules" "/etc/udev/rules.d/99-touchscreen-transform.rules"
+            chmod 644 /etc/udev/rules.d/99-touchscreen-transform.rules
+
+            # Reload udev rules
+            udevadm control --reload-rules
+            log_info "✓ Udev rule updated and reloaded"
+
+            # Trigger rule for currently connected devices
+            log_info "Applying transformation to currently connected touchscreens..."
+            /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh &
+        else
+            log_info "✓ Udev rule unchanged"
+        fi
+    fi
+
     return $restart_needed
 }
 

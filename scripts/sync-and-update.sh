@@ -62,11 +62,38 @@ main() {
         exit 1
     fi
 
-    # Change to repo directory
+    # Check if repo directory exists, if not try to clone
     if [ ! -d "$REPO_DIR" ]; then
-        log_error "Repository directory not found: $REPO_DIR"
-        log_error "This should have been created during first-boot provisioning"
-        exit 1
+        log_warn "Repository directory not found: $REPO_DIR"
+        log_info "Attempting to clone repository for auto-recovery..."
+
+        # Check network connectivity before attempting clone
+        if ! timeout 5 curl -sf https://github.com >/dev/null 2>&1; then
+            log_error "GitHub unreachable - cannot clone repository"
+            log_error "Kiosk will continue with default configuration"
+            log_error "Repository will be cloned on next boot when network is available"
+            exit 0
+        fi
+
+        # Try to clone the repository
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
+            REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
+            if timeout 60 git clone "$REPO_URL_WITH_TOKEN" "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
+                log_info "✓ Repository cloned successfully"
+            else
+                log_error "Failed to clone repository with token"
+                log_error "Kiosk will continue with default configuration"
+                exit 0
+            fi
+        else
+            if timeout 60 git clone "$REPO_URL" "$REPO_DIR" 2>&1 | tee -a "$LOG_FILE"; then
+                log_info "✓ Repository cloned successfully"
+            else
+                log_error "Failed to clone repository (repo may be private - set GITHUB_TOKEN)"
+                log_error "Kiosk will continue with default configuration"
+                exit 0
+            fi
+        fi
     fi
 
     cd "$REPO_DIR"

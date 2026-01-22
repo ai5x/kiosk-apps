@@ -10,6 +10,7 @@ Type=oneshot
 User=root
 Environment="GITHUB_TOKEN="
 EnvironmentFile=-/opt/kiosk-apps/.env.local
+EnvironmentFile=-/etc/kiosk-apps/github-token
 ExecStart=/opt/kiosk-apps/scripts/sync-and-update.sh
 StandardOutput=journal
 StandardError=journal

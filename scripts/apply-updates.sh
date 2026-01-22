@@ -209,6 +209,60 @@ check_reboot_requirement() {
     fi
 }
 
+# Apply display configuration updates
+apply_display_config() {
+    log_section "Display Configuration"
+
+    local restart_needed=1
+
+    # Read orientation from config
+    if [ ! -f "${REPO_DIR}/config/.env" ]; then
+        log_warn "No config/.env found, skipping display config"
+        return 1
+    fi
+
+    source "${REPO_DIR}/config/.env"
+    ORIENTATION=${DISPLAY_ORIENTATION:-landscape}
+    log_info "Target orientation: $ORIENTATION"
+
+    # Deploy X server config for modesetting driver
+    if [ -f "${REPO_DIR}/config/xorg-modesetting.conf" ]; then
+        mkdir -p /etc/X11/xorg.conf.d
+        if ! diff -q "${REPO_DIR}/config/xorg-modesetting.conf" "/etc/X11/xorg.conf.d/99-v3d.conf" >/dev/null 2>&1; then
+            log_info "Updating X server configuration..."
+            cp "${REPO_DIR}/config/xorg-modesetting.conf" "/etc/X11/xorg.conf.d/99-v3d.conf"
+            chmod 644 /etc/X11/xorg.conf.d/99-v3d.conf
+            restart_needed=0
+        else
+            log_info "✓ X server config unchanged"
+        fi
+    fi
+
+    # Deploy openbox autostart based on orientation
+    local autostart_source="${REPO_DIR}/config/openbox-autostart-${ORIENTATION}"
+    local autostart_dest="/home/pi/.config/openbox/autostart"
+
+    if [ ! -f "$autostart_source" ]; then
+        log_error "Autostart file not found: $autostart_source"
+        log_error "Valid orientations: landscape, portrait, portrait-inverted"
+        return 1
+    fi
+
+    if ! diff -q "$autostart_source" "$autostart_dest" >/dev/null 2>&1; then
+        log_info "Updating openbox autostart for ${ORIENTATION} mode..."
+        mkdir -p /home/pi/.config/openbox
+        cp "$autostart_source" "$autostart_dest"
+        chmod +x "$autostart_dest"
+        chown -R pi:pi /home/pi/.config
+        log_info "✓ Autostart updated for ${ORIENTATION} mode"
+        restart_needed=0
+    else
+        log_info "✓ Openbox autostart unchanged"
+    fi
+
+    return $restart_needed
+}
+
 # Main function
 main() {
     log_section "Applying Kiosk Updates"
@@ -222,6 +276,7 @@ main() {
     # Track if restart is needed
     local config_changed=1
     local scripts_changed=1
+    local display_changed=1
 
     # Apply updates
     if apply_config_updates; then
@@ -232,10 +287,28 @@ main() {
         scripts_changed=0
     fi
 
+    if apply_display_config; then
+        display_changed=0
+    fi
+
     apply_package_updates
 
-    # Restart kiosk if configuration or scripts changed
-    restart_kiosk_if_needed $config_changed $scripts_changed
+    # Restart kiosk if configuration, scripts, or display changed
+    if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ]; then
+        log_section "Restarting Kiosk"
+        log_info "Configuration, scripts, or display changed - restarting display manager..."
+
+        # Give time for any pending operations
+        sleep 2
+
+        # Restart display manager (which will restart kiosk)
+        systemctl restart lightdm
+        log_info "✓ Display manager restarted"
+
+        log_info "Kiosk should now be running with updated configuration"
+    else
+        log_info "✓ No restart needed"
+    fi
 
     # Check if system reboot is required
     check_reboot_requirement

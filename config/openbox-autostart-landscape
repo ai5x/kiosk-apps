@@ -1,0 +1,14 @@
+#!/bin/bash
+# Openbox Autostart - Landscape Mode
+# No screen rotation applied
+
+# Disable screen blanking and power management
+xset s off
+xset -dpms
+xset s noblank
+
+# Hide mouse cursor after inactivity
+unclutter -idle 0.1 -root &
+
+# Start kiosk application
+/opt/kiosk/start-kiosk.sh &

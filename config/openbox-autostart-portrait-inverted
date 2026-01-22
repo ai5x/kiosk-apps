@@ -1,0 +1,25 @@
+#!/bin/bash
+# Openbox Autostart - Portrait Inverted Mode (270° clockwise / 90° counter-clockwise rotation)
+
+# Rotate display to inverted portrait mode
+xrandr --output HDMI-1 --rotate left
+
+# Wait for X to fully initialize
+sleep 2
+
+# Rotate touchscreen input to match display rotation (270° clockwise)
+# Transformation matrix: 0 -1 1 1 0 0 0 0 1
+for device in $(xinput list | grep -i "touch" | grep -o 'id=[0-9]*' | cut -d= -f2); do
+    xinput set-prop $device 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1
+done
+
+# Disable screen blanking and power management
+xset s off
+xset -dpms
+xset s noblank
+
+# Hide mouse cursor after inactivity
+unclutter -idle 0.1 -root &
+
+# Start kiosk application
+/opt/kiosk/start-kiosk.sh &

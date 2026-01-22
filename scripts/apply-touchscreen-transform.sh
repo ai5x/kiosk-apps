@@ -10,7 +10,15 @@ set -euo pipefail
 # Configuration
 KIOSK_CONFIG="/opt/kiosk/.env"
 LOG_FILE="/tmp/touchscreen-transform.log"
-DISPLAY="${DISPLAY:-:0}"
+
+# Set up X display access
+export DISPLAY="${DISPLAY:-:0}"
+export XAUTHORITY="${XAUTHORITY:-/home/pi/.Xauthority}"
+
+# When run as root (via udev or sudo), use pi user's X authority
+if [ "$EUID" -eq 0 ] && [ -f "/home/pi/.Xauthority" ]; then
+    export XAUTHORITY="/home/pi/.Xauthority"
+fi
 
 log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
@@ -48,19 +56,21 @@ case "$ORIENTATION" in
 esac
 
 # Wait a moment for X server to fully register new devices
-sleep 1
+sleep 2
 
 # Find all touchscreen devices and apply transformation
-TOUCH_DEVICES=$(DISPLAY=$DISPLAY xinput list 2>/dev/null | grep -i "touch" | grep -o 'id=[0-9]*' | cut -d= -f2 || true)
+TOUCH_DEVICES=$(xinput list 2>/dev/null | grep -i "touch" | grep -o 'id=[0-9]*' | cut -d= -f2 || true)
 
 if [ -z "$TOUCH_DEVICES" ]; then
-    log "No touchscreen devices found"
+    log "No touchscreen devices found (DISPLAY=$DISPLAY, XAUTHORITY=$XAUTHORITY)"
     exit 0
 fi
 
+log "Found touchscreen devices: $TOUCH_DEVICES"
+
 for device in $TOUCH_DEVICES; do
     log "Applying transformation to device $device"
-    if DISPLAY=$DISPLAY xinput set-prop "$device" 'Coordinate Transformation Matrix' $MATRIX 2>&1 | tee -a "$LOG_FILE"; then
+    if xinput set-prop "$device" 'Coordinate Transformation Matrix' $MATRIX 2>&1 | tee -a "$LOG_FILE"; then
         log "✓ Transformation applied to device $device"
     else
         log "✗ Failed to apply transformation to device $device"

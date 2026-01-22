@@ -1,17 +1,37 @@
 #!/bin/bash
 # Openbox Autostart - Portrait Inverted Mode (270° clockwise / 90° counter-clockwise rotation)
 
-# Rotate display to inverted portrait mode
-xrandr --output HDMI-1 --rotate left
+LOG_FILE="/tmp/openbox-autostart.log"
+echo "$(date): Starting openbox autostart (portrait-inverted mode)" > "$LOG_FILE"
 
-# Wait for X to fully initialize
-sleep 2
+# Rotate display to inverted portrait mode
+/usr/bin/xrandr --output HDMI-1 --rotate left 2>> "$LOG_FILE"
+echo "$(date): xrandr completed" >> "$LOG_FILE"
+
+# Wait for X and input devices to fully initialize
+sleep 5
 
 # Rotate touchscreen input to match display rotation (270° clockwise)
-# Transformation matrix: 0 -1 1 1 0 0 0 0 1
-for device in $(xinput list | grep -i "touch" | grep -o 'id=[0-9]*' | cut -d= -f2); do
-    xinput set-prop $device 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1
+# Retry up to 10 times to find touch devices (timing issue on some systems)
+echo "$(date): Looking for touch devices" >> "$LOG_FILE"
+MAX_ATTEMPTS=10
+ATTEMPT=1
+while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+    DEVICES=$(/usr/bin/xinput list | grep -i "touch" | grep -o "id=[0-9]*" | cut -d= -f2)
+    if [ -n "$DEVICES" ]; then
+        echo "$(date): Found touch devices on attempt $ATTEMPT" >> "$LOG_FILE"
+        for device in $DEVICES; do
+            echo "$(date): Setting transformation for device $device" >> "$LOG_FILE"
+            /usr/bin/xinput set-prop $device 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1 2>> "$LOG_FILE"
+        done
+        break
+    else
+        echo "$(date): No touch devices found, attempt $ATTEMPT/$MAX_ATTEMPTS" >> "$LOG_FILE"
+        sleep 1
+        ATTEMPT=$((ATTEMPT + 1))
+    fi
 done
+echo "$(date): Touch configuration completed" >> "$LOG_FILE"
 
 # Disable screen blanking and power management
 xset s off

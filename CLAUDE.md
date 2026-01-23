@@ -409,6 +409,15 @@ kiosk-apps/
 **Auto-recovery:** Service auto-clones repo on next boot if missing
 **Commit:** d31a152 (2026-01-22)
 
+### Issue: OTA updates don't fix incorrect touchscreen on existing kiosks
+**Symptoms:** Kiosks with bad touchscreen state don't get fixed by OTA updates
+**Cause:** When xinput is installed via OTA, openbox autostart doesn't re-run, so transformation commands that failed initially never get applied to current session
+**Fix:** Added automatic touchscreen transformation when critical packages (xinput) are newly installed
+- Detect fresh xinput installation (not already present)
+- Apply transformation synchronously after installation
+- Trigger lightdm restart to ensure clean state
+**Commits:** ed193e9, 235336f (2026-01-23)
+
 ## Related Projects
 
 - **hs1-kiosk:** Base image builder (use only for OS-level changes)

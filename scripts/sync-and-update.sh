@@ -71,12 +71,22 @@ main() {
 
     log_section "Kiosk-Apps Auto-Update"
     log_info "Starting sync and update process..."
-    plymouth_message "Kiosk-Apps: Checking for updates..."
 
     # Verify running as root
     if [[ $EUID -ne 0 ]]; then
         log_error "This script must be run as root"
         exit 1
+    fi
+
+    # Display current version at startup (if repo exists)
+    if [ -d "$REPO_DIR/.git" ]; then
+        cd "$REPO_DIR"
+        STARTUP_COMMIT=$(git rev-parse HEAD 2>/dev/null)
+        STARTUP_VERSION=$(git describe --tags --always 2>/dev/null || echo "${STARTUP_COMMIT:0:8}")
+        plymouth_message "Kiosk-Apps: Running version $STARTUP_VERSION"
+        log_info "Current installed version: $STARTUP_VERSION"
+    else
+        plymouth_message "Kiosk-Apps: Checking for updates..."
     fi
 
     # Check if repo directory exists, if not try to clone

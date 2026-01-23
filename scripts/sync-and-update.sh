@@ -83,11 +83,8 @@ main() {
         cd "$REPO_DIR"
         STARTUP_COMMIT=$(git rev-parse HEAD 2>/dev/null)
         STARTUP_VERSION=$(git describe --tags --always 2>/dev/null || echo "${STARTUP_COMMIT:0:8}")
-        # Display version prominently with sleep to ensure visibility
         plymouth_message "Kiosk-Apps $STARTUP_VERSION: Checking for updates..."
         log_info "Current installed version: $STARTUP_VERSION"
-        # Brief pause to ensure Plymouth message is visible
-        sleep 1
     else
         plymouth_message "Kiosk-Apps: Checking for updates..."
     fi

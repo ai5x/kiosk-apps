@@ -151,13 +151,19 @@ apply_package_updates() {
             fi
 
             # Install packages
-            if DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES 2>&1 | tee -a "$LOG_FILE"; then
+            APT_OUTPUT=$(DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES 2>&1 | tee -a "$LOG_FILE")
+            if [ $? -eq 0 ]; then
                 log_info "✓ Packages installed: $PACKAGES"
                 packages_changed=1
 
-                # Check if xinput was installed (critical for touchscreen)
-                if echo "$PACKAGES" | grep -q "xinput"; then
-                    log_info "Critical package 'xinput' was installed - touchscreen fix needed"
+                # Check if xinput was actually newly installed (not already present)
+                if echo "$APT_OUTPUT" | grep -q "newly installed" && echo "$PACKAGES" | grep -q "xinput"; then
+                    log_info "Critical package 'xinput' was newly installed - touchscreen fix needed"
+                    critical_packages_installed=1
+                elif ! dpkg -l | grep -q "^ii  xinput" && echo "$PACKAGES" | grep -q "xinput"; then
+                    # Fallback: check if xinput is in packages list but wasn't installed before
+                    # This handles the case where apt-get output format varies
+                    log_info "Critical package 'xinput' installation detected - touchscreen fix needed"
                     critical_packages_installed=1
                 fi
             else
@@ -209,7 +215,11 @@ apply_package_updates() {
     fi
 
     # Return 0 if critical packages were installed, 1 otherwise
-    return $critical_packages_installed
+    if [ $critical_packages_installed -eq 1 ]; then
+        return 0  # Success: critical packages were installed
+    else
+        return 1  # Failure: no critical packages installed
+    fi
 }
 
 # Restart kiosk if needed

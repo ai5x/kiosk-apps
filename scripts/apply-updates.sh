@@ -443,11 +443,19 @@ main() {
     log_section "Update Complete"
     log_info "Kiosk update process finished successfully"
 
+    # Get current version for completion message
+    CURRENT_VERSION="unknown"
+    if [ -d "${REPO_DIR}/.git" ]; then
+        cd "${REPO_DIR}"
+        CURRENT_VERSION=$(git describe --tags --always 2>/dev/null || echo "unknown")
+    fi
+
     # Console completion message
     echo ""
     echo "========================================================"
     echo "  KIOSK-APPS UPDATE COMPLETE"
     echo "========================================================"
+    echo "  Version: $CURRENT_VERSION"
     if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ]; then
         echo "  Status: Configuration updated, kiosk restarted"
     else
@@ -455,6 +463,9 @@ main() {
     fi
     echo "========================================================"
     echo ""
+
+    # Final Plymouth message with version
+    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Ready"
 }
 
 # Run main function

@@ -83,8 +83,11 @@ main() {
         cd "$REPO_DIR"
         STARTUP_COMMIT=$(git rev-parse HEAD 2>/dev/null)
         STARTUP_VERSION=$(git describe --tags --always 2>/dev/null || echo "${STARTUP_COMMIT:0:8}")
-        plymouth_message "Kiosk-Apps: Running version $STARTUP_VERSION"
+        # Display version prominently with sleep to ensure visibility
+        plymouth_message "Kiosk-Apps $STARTUP_VERSION: Checking for updates..."
         log_info "Current installed version: $STARTUP_VERSION"
+        # Brief pause to ensure Plymouth message is visible
+        sleep 1
     else
         plymouth_message "Kiosk-Apps: Checking for updates..."
     fi
@@ -143,11 +146,10 @@ main() {
     CURRENT_SHORT="${CURRENT_COMMIT:0:8}"
     CURRENT_VERSION=$(git describe --tags --always 2>/dev/null || echo "$CURRENT_SHORT")
     log_info "Current version: $CURRENT_VERSION (commit: $CURRENT_SHORT)"
-    plymouth_message "Kiosk-Apps: Current version $CURRENT_VERSION"
 
     # Fetch latest changes and tags (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
-    plymouth_message "Kiosk-Apps: Fetching updates from GitHub..."
+    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Fetching updates..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
         if timeout 30 git fetch --tags "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
@@ -174,7 +176,7 @@ main() {
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
-        plymouth_message "Kiosk-Apps: Up to date ($CURRENT_VERSION)"
+        plymouth_message "Kiosk-Apps $CURRENT_VERSION: Up to date"
     else
         log_info "Updates available - pulling changes..."
         plymouth_message "Kiosk-Apps: Updating to $REMOTE_VERSION..."

@@ -427,13 +427,16 @@ kiosk-apps/
 │   ├── xorg-modesetting.conf            # X server config
 │   ├── openbox-autostart-landscape      # Landscape rotation
 │   ├── openbox-autostart-portrait       # Portrait rotation (90°)
-│   └── openbox-autostart-portrait-inverted  # Portrait inverted (270°)
+│   ├── openbox-autostart-portrait-inverted  # Portrait inverted (270°)
+│   └── 99-touchscreen-transform.rules   # Udev rule for touchscreen hot-plug
 ├── scripts/
 │   ├── sync-and-update.sh               # Main sync script (runs on boot)
 │   ├── apply-updates.sh                 # Apply configuration changes
+│   ├── apply-touchscreen-transform.sh   # Apply touchscreen transformation
 │   └── install-sync-service.sh          # Manual installation script
 ├── systemd/
 │   └── kiosk-apps-sync.service          # Systemd service definition
+├── CLAUDE.md                            # Development documentation
 └── README.md                            # User documentation
 ```
 
@@ -479,6 +482,33 @@ kiosk-apps/
 - Trigger lightdm restart to ensure clean state
 **Commits:** ed193e9, 235336f (2026-01-23)
 
+### Issue: Touchscreen not working after OTA update (udev timeout)
+**Symptoms:** Touchscreen completely unresponsive, software configuration appears correct
+**Cause:** Udev rule was running transformation script synchronously, causing 3-minute timeout and script termination
+**Root cause:** Script's `sleep 2` and X server communication blocked udev worker, which killed the process after timeout
+**Fix:** Use `systemd-run --no-block` to execute transformation script asynchronously
+- Udev no longer waits for script completion
+- Hot-plug events complete successfully
+- Touchscreen transformation applies in background
+**Commit:** c4cf182 (2026-01-23)
+**Version:** v1.1.20
+
+### Issue: False positive xinput installation detection
+**Symptoms:** Kiosk unnecessarily restarts lightdm on every boot even when xinput already installed
+**Cause:** Detection logic matched "0 newly installed" as a trigger condition
+**Fix:** Use regex to only match when 1+ packages actually installed (not "0 newly installed")
+**Commit:** 214603c (2026-01-23)
+**Version:** v1.1.19
+
+### Enhancement: Version display improvements
+**Implementation:** Multiple improvements to show version tags prominently
+- v1.1.18: Version included in all Plymouth message prefixes (e.g., "Kiosk-Apps v1.1.18: Status")
+- v1.1.17: Display current version immediately on startup
+- v1.1.16: Fetch git tags during sync to enable version tag display
+- v1.1.15: Show release version tags instead of commit hashes
+**Commits:** c82d3ac, 81800a7, 509a385, 684ec28, 62dc47c (2026-01-23)
+**Versions:** v1.1.15 - v1.1.18
+
 ### Enhancement: Boot screen progress visibility
 **Request:** Show update progress on Plymouth boot screen to indicate system is working
 **Implementation:** Added Plymouth message commands to sync and update scripts
@@ -487,6 +517,7 @@ kiosk-apps/
 - Provides visual feedback that prevents users thinking system is hung
 - Messages appear at default Plymouth message location
 **Commit:** 4531679 (2026-01-23)
+**Version:** v1.1.14
 
 ## Related Projects
 

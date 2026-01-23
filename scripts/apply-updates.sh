@@ -129,6 +129,7 @@ apply_package_updates() {
     log_section "Package Updates"
 
     local packages_changed=0
+    local critical_packages_installed=0
 
     # Check if package installation is requested
     if [ -f "${REPO_DIR}/config/install-packages.txt" ]; then
@@ -153,6 +154,12 @@ apply_package_updates() {
             if DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES 2>&1 | tee -a "$LOG_FILE"; then
                 log_info "✓ Packages installed: $PACKAGES"
                 packages_changed=1
+
+                # Check if xinput was installed (critical for touchscreen)
+                if echo "$PACKAGES" | grep -q "xinput"; then
+                    log_info "Critical package 'xinput' was installed - touchscreen fix needed"
+                    critical_packages_installed=1
+                fi
             else
                 log_error "Package installation failed"
                 return 1
@@ -201,7 +208,8 @@ apply_package_updates() {
         fi
     fi
 
-    return 0
+    # Return 0 if critical packages were installed, 1 otherwise
+    return $critical_packages_installed
 }
 
 # Restart kiosk if needed
@@ -346,6 +354,7 @@ main() {
     local config_changed=1
     local scripts_changed=1
     local display_changed=1
+    local critical_packages_installed=1
 
     # Apply updates
     if apply_config_updates; then
@@ -360,10 +369,30 @@ main() {
         display_changed=0
     fi
 
-    apply_package_updates
+    if apply_package_updates; then
+        critical_packages_installed=0
+    fi
 
-    # Restart kiosk if configuration, scripts, or display changed
-    if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ]; then
+    # If critical packages (xinput) or display config changed, apply transformation immediately
+    if [ $critical_packages_installed -eq 0 ] || [ $display_changed -eq 0 ]; then
+        log_section "Applying Touchscreen Transformation"
+        log_info "Critical changes detected - applying touchscreen transformation to current session..."
+
+        # Wait for X server and newly installed packages to be ready
+        sleep 3
+
+        # Run transformation script synchronously (not in background)
+        if [ -x "/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh" ]; then
+            log_info "Running transformation script..."
+            /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh
+            log_info "✓ Transformation script completed"
+        else
+            log_warn "Transformation script not found or not executable"
+        fi
+    fi
+
+    # Restart kiosk if configuration, scripts, display, or critical packages changed
+    if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ] || [ $critical_packages_installed -eq 0 ]; then
         log_section "Restarting Kiosk"
         log_info "Configuration, scripts, or display changed - restarting display manager..."
 

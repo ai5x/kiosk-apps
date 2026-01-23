@@ -168,13 +168,9 @@ apply_package_updates() {
                 packages_changed=1
 
                 # Check if xinput was actually newly installed (not already present)
-                if echo "$APT_OUTPUT" | grep -q "newly installed" && echo "$PACKAGES" | grep -q "xinput"; then
+                # Look for pattern like "1 newly installed" or "2 newly installed" (not "0 newly installed")
+                if echo "$APT_OUTPUT" | grep -E "[1-9][0-9]* newly installed" && echo "$PACKAGES" | grep -q "xinput"; then
                     log_info "Critical package 'xinput' was newly installed - touchscreen fix needed"
-                    critical_packages_installed=1
-                elif ! dpkg -l | grep -q "^ii  xinput" && echo "$PACKAGES" | grep -q "xinput"; then
-                    # Fallback: check if xinput is in packages list but wasn't installed before
-                    # This handles the case where apt-get output format varies
-                    log_info "Critical package 'xinput' installation detected - touchscreen fix needed"
                     critical_packages_installed=1
                 fi
             else

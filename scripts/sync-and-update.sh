@@ -25,6 +25,13 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Plymouth message helper (shows status on boot screen)
+plymouth_message() {
+    if command -v plymouth >/dev/null 2>&1 && plymouth --ping 2>/dev/null; then
+        plymouth message --text="$1" || true
+    fi
+}
+
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
@@ -64,6 +71,7 @@ main() {
 
     log_section "Kiosk-Apps Auto-Update"
     log_info "Starting sync and update process..."
+    plymouth_message "Kiosk-Apps: Checking for updates..."
 
     # Verify running as root
     if [[ $EUID -ne 0 ]]; then
@@ -122,10 +130,13 @@ main() {
 
     # Get current commit before pull
     CURRENT_COMMIT=$(git rev-parse HEAD)
-    log_info "Current commit: ${CURRENT_COMMIT:0:8}"
+    CURRENT_SHORT="${CURRENT_COMMIT:0:8}"
+    log_info "Current commit: $CURRENT_SHORT"
+    plymouth_message "Kiosk-Apps: Current version $CURRENT_SHORT"
 
     # Fetch latest changes (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
+    plymouth_message "Kiosk-Apps: Fetching updates from GitHub..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
         if timeout 30 git fetch "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
@@ -145,19 +156,25 @@ main() {
 
     # Check if there are updates
     REMOTE_COMMIT=$(git rev-parse origin/master)
-    log_info "Remote commit: ${REMOTE_COMMIT:0:8}"
+    REMOTE_SHORT="${REMOTE_COMMIT:0:8}"
+    log_info "Remote commit: $REMOTE_SHORT"
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
+        plymouth_message "Kiosk-Apps: Up to date ($CURRENT_SHORT)"
     else
         log_info "Updates available - pulling changes..."
+        plymouth_message "Kiosk-Apps: Updating to version $REMOTE_SHORT..."
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
-            log_info "✓ Updated to commit: ${NEW_COMMIT:0:8}"
+            NEW_SHORT="${NEW_COMMIT:0:8}"
+            log_info "✓ Updated to commit: $NEW_SHORT"
+            plymouth_message "Kiosk-Apps: Updated to version $NEW_SHORT"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
+            plymouth_message "Kiosk-Apps: Update failed, using $CURRENT_SHORT"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi
@@ -165,6 +182,7 @@ main() {
     # Execute apply-updates.sh to apply configuration changes
     log_section "Applying Updates"
     log_info "Running apply-updates.sh to apply configuration and package updates..."
+    plymouth_message "Kiosk-Apps: Applying configuration updates..."
 
     echo ""
     echo ">>> Applying kiosk configuration updates..."

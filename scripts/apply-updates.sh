@@ -20,6 +20,13 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Plymouth message helper (shows status on boot screen)
+plymouth_message() {
+    if command -v plymouth >/dev/null 2>&1 && plymouth --ping 2>/dev/null; then
+        plymouth message --text="$1" || true
+    fi
+}
+
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $(date '+%Y-%m-%d %H:%M:%S') $1" | tee -a "$LOG_FILE"
 }
@@ -63,6 +70,7 @@ check_config_changes() {
 # Apply configuration updates
 apply_config_updates() {
     log_section "Configuration Updates"
+    plymouth_message "Kiosk-Apps: Checking configuration..."
 
     if check_config_changes; then
         log_info "Configuration changes detected"
@@ -127,6 +135,7 @@ apply_script_updates() {
 # Apply package updates
 apply_package_updates() {
     log_section "Package Updates"
+    plymouth_message "Kiosk-Apps: Checking packages..."
 
     local packages_changed=0
     local critical_packages_installed=0
@@ -140,9 +149,11 @@ apply_package_updates() {
 
         if [ -n "$PACKAGES" ]; then
             log_info "Installing packages: $PACKAGES"
+            plymouth_message "Kiosk-Apps: Installing packages..."
 
             # Update package lists
             log_info "Updating package lists..."
+            plymouth_message "Kiosk-Apps: Updating package lists..."
             if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
                 log_info "✓ Package lists updated"
             else
@@ -268,6 +279,7 @@ check_reboot_requirement() {
 # Apply display configuration updates
 apply_display_config() {
     log_section "Display Configuration"
+    plymouth_message "Kiosk-Apps: Configuring display..."
 
     local restart_needed=1
 
@@ -280,6 +292,7 @@ apply_display_config() {
     source "${REPO_DIR}/config/.env"
     ORIENTATION=${DISPLAY_ORIENTATION:-landscape}
     log_info "Target orientation: $ORIENTATION"
+    plymouth_message "Kiosk-Apps: Display mode: $ORIENTATION"
 
     # Deploy X server config for modesetting driver
     if [ -f "${REPO_DIR}/config/xorg-modesetting.conf" ]; then
@@ -387,6 +400,7 @@ main() {
     if [ $critical_packages_installed -eq 0 ] || [ $display_changed -eq 0 ]; then
         log_section "Applying Touchscreen Transformation"
         log_info "Critical changes detected - applying touchscreen transformation to current session..."
+        plymouth_message "Kiosk-Apps: Configuring touchscreen..."
 
         # Wait for X server and newly installed packages to be ready
         sleep 3
@@ -396,6 +410,7 @@ main() {
             log_info "Running transformation script..."
             /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh
             log_info "✓ Transformation script completed"
+            plymouth_message "Kiosk-Apps: Touchscreen configured"
         else
             log_warn "Transformation script not found or not executable"
         fi
@@ -405,6 +420,7 @@ main() {
     if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ] || [ $critical_packages_installed -eq 0 ]; then
         log_section "Restarting Kiosk"
         log_info "Configuration, scripts, or display changed - restarting display manager..."
+        plymouth_message "Kiosk-Apps: Restarting display manager..."
 
         # Give time for any pending operations
         sleep 2
@@ -413,10 +429,12 @@ main() {
         # Use --no-block to avoid deadlock with boot-time dependencies
         systemctl --no-block restart lightdm
         log_info "✓ Display manager restart initiated"
+        plymouth_message "Kiosk-Apps: Update complete, starting kiosk..."
 
         log_info "Kiosk should now be running with updated configuration"
     else
         log_info "✓ No restart needed"
+        plymouth_message "Kiosk-Apps: Update complete, no restart needed"
     fi
 
     # Check if system reboot is required

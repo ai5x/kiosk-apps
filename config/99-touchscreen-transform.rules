@@ -1,9 +1,11 @@
 # Udev rule to automatically apply touchscreen transformation when devices are connected
 # This handles hot-plug events where touchscreen is disconnected and reconnected
+#
+# Note: We use systemd-run to execute the script asynchronously to avoid blocking udev
 
 # Trigger on input device addition
 # Match touchscreen devices (devices with BTN_TOUCH capability)
-ACTION=="add", KERNEL=="event[0-9]*", ATTRS{name}=="*[Tt]ouch*", ENV{DISPLAY}=":0", RUN+="/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"
+ACTION=="add", KERNEL=="event[0-9]*", ATTRS{name}=="*[Tt]ouch*", RUN+="/usr/bin/systemd-run --no-block /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"
 
 # Also trigger on input device changes (some devices send "change" events)
-ACTION=="change", KERNEL=="event[0-9]*", ATTRS{name}=="*[Tt]ouch*", ENV{DISPLAY}=":0", RUN+="/opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"
+ACTION=="change", KERNEL=="event[0-9]*", ATTRS{name}=="*[Tt]ouch*", RUN+="/usr/bin/systemd-run --no-block /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh"

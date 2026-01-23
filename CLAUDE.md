@@ -236,6 +236,14 @@ No transformation (identity matrix)
 
 ## Logging and Debugging
 
+**Boot screen progress (Plymouth):**
+During boot, kiosk-apps displays update progress on the Plymouth splash screen:
+- Current commit version being deployed
+- Git fetch/update status
+- Configuration, package, and display update progress
+- Shows system is working and not hung
+- Messages appear below the ai5x logo at default Plymouth message location
+
 **Service logs:**
 ```bash
 # View sync service status
@@ -417,6 +425,15 @@ kiosk-apps/
 - Apply transformation synchronously after installation
 - Trigger lightdm restart to ensure clean state
 **Commits:** ed193e9, 235336f (2026-01-23)
+
+### Enhancement: Boot screen progress visibility
+**Request:** Show update progress on Plymouth boot screen to indicate system is working
+**Implementation:** Added Plymouth message commands to sync and update scripts
+- Display current commit version during sync
+- Show progress for git operations, config, packages, display updates
+- Provides visual feedback that prevents users thinking system is hung
+- Messages appear at default Plymouth message location
+**Commit:** 4531679 (2026-01-23)
 
 ## Related Projects
 

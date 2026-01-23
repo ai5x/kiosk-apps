@@ -128,11 +128,12 @@ main() {
         exec "${REPO_DIR}/scripts/apply-updates.sh"
     fi
 
-    # Get current commit before pull
+    # Get current version (tag or commit)
     CURRENT_COMMIT=$(git rev-parse HEAD)
     CURRENT_SHORT="${CURRENT_COMMIT:0:8}"
-    log_info "Current commit: $CURRENT_SHORT"
-    plymouth_message "Kiosk-Apps: Current version $CURRENT_SHORT"
+    CURRENT_VERSION=$(git describe --tags --always 2>/dev/null || echo "$CURRENT_SHORT")
+    log_info "Current version: $CURRENT_VERSION (commit: $CURRENT_SHORT)"
+    plymouth_message "Kiosk-Apps: Current version $CURRENT_VERSION"
 
     # Fetch latest changes (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
@@ -157,24 +158,27 @@ main() {
     # Check if there are updates
     REMOTE_COMMIT=$(git rev-parse origin/master)
     REMOTE_SHORT="${REMOTE_COMMIT:0:8}"
-    log_info "Remote commit: $REMOTE_SHORT"
+    # Get remote version tag
+    REMOTE_VERSION=$(git describe --tags origin/master 2>/dev/null || echo "$REMOTE_SHORT")
+    log_info "Remote version: $REMOTE_VERSION (commit: $REMOTE_SHORT)"
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
-        plymouth_message "Kiosk-Apps: Up to date ($CURRENT_SHORT)"
+        plymouth_message "Kiosk-Apps: Up to date ($CURRENT_VERSION)"
     else
         log_info "Updates available - pulling changes..."
-        plymouth_message "Kiosk-Apps: Updating to version $REMOTE_SHORT..."
+        plymouth_message "Kiosk-Apps: Updating to $REMOTE_VERSION..."
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             NEW_SHORT="${NEW_COMMIT:0:8}"
-            log_info "✓ Updated to commit: $NEW_SHORT"
-            plymouth_message "Kiosk-Apps: Updated to version $NEW_SHORT"
+            NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "$NEW_SHORT")
+            log_info "✓ Updated to version: $NEW_VERSION (commit: $NEW_SHORT)"
+            plymouth_message "Kiosk-Apps: Updated to $NEW_VERSION"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
-            plymouth_message "Kiosk-Apps: Update failed, using $CURRENT_SHORT"
+            plymouth_message "Kiosk-Apps: Update failed, using $CURRENT_VERSION"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi

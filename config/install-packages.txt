@@ -4,3 +4,6 @@
 
 # xinput - Required for touchscreen coordinate transformation
 xinput
+
+# prometheus-node-exporter - System metrics collection for monitoring
+prometheus-node-exporter

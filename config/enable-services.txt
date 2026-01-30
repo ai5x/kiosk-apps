@@ -1,0 +1,6 @@
+# Services to enable after package installation
+# One service name per line
+# These will be enabled and started via systemctl
+
+# prometheus-node-exporter - Enable metrics collection on port 9100
+prometheus-node-exporter

@@ -132,6 +132,38 @@ apply_script_updates() {
     return $restart_needed
 }
 
+# Enable systemd services after package installation
+enable_services_after_install() {
+    if [ -f "${REPO_DIR}/config/enable-services.txt" ]; then
+        # Read services to enable (skip comments and empty lines)
+        SERVICES=$(grep -v '^#' "${REPO_DIR}/config/enable-services.txt" | grep -v '^$' | xargs)
+
+        if [ -n "$SERVICES" ]; then
+            log_info "Enabling services: $SERVICES"
+
+            for service in $SERVICES; do
+                # Check if service unit exists
+                if systemctl list-unit-files | grep -q "^${service}.service"; then
+                    # Enable and start the service
+                    if systemctl enable "$service" 2>&1 | tee -a "$LOG_FILE"; then
+                        log_info "✓ Enabled service: $service"
+                    else
+                        log_warn "Failed to enable service: $service"
+                    fi
+
+                    if systemctl start "$service" 2>&1 | tee -a "$LOG_FILE"; then
+                        log_info "✓ Started service: $service"
+                    else
+                        log_warn "Failed to start service: $service (may already be running)"
+                    fi
+                else
+                    log_warn "Service unit not found: $service (package may not be installed yet)"
+                fi
+            done
+        fi
+    fi
+}
+
 # Apply package updates
 apply_package_updates() {
     log_section "Package Updates"
@@ -173,6 +205,9 @@ apply_package_updates() {
                     log_info "Critical package 'xinput' was newly installed - touchscreen fix needed"
                     critical_packages_installed=1
                 fi
+
+                # Enable services if requested
+                enable_services_after_install
             else
                 log_error "Package installation failed"
                 return 1

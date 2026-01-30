@@ -181,6 +181,23 @@ git push
 # These packages are checked on every boot (persistent file)
 ```
 
+### Enable Services After Installation
+
+```bash
+# Add services to config/enable-services.txt (permanent)
+# Services will be enabled and started after package installation
+echo "# Services to enable" > config/enable-services.txt
+echo "prometheus-node-exporter" >> config/enable-services.txt
+echo "some-other-service" >> config/enable-services.txt
+
+git add config/enable-services.txt
+git commit -m "Enable monitoring services on kiosks"
+git push
+
+# On next boot, services will be enabled and started after packages install
+# Useful for packages that don't auto-enable their services
+```
+
 ### Trigger Package Updates/Upgrades
 
 ```bash
@@ -423,6 +440,7 @@ kiosk-apps/
 ├── config/
 │   ├── .env                              # Main configuration
 │   ├── install-packages.txt              # Packages to install (persistent)
+│   ├── enable-services.txt               # Services to enable after install (persistent)
 │   ├── update-packages.txt               # Trigger for apt upgrade (one-time, optional)
 │   ├── xorg-modesetting.conf            # X server config
 │   ├── openbox-autostart-landscape      # Landscape rotation

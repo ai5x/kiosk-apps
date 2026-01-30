@@ -99,6 +99,7 @@ echo "[$(date '+%Y-%m-%d %H:%M:%S')] Launching Chromium..." | tee -a "$LOG_FILE"
 # --start-fullscreen: Start in fullscreen
 # --window-position: Position at 0,0
 # --disk-cache-size: Limit cache size
+# --js-flags: JavaScript engine flags (max-old-space-size = 2800MB heap limit)
 
 chromium \
     --kiosk \
@@ -121,6 +122,7 @@ chromium \
     --force-device-scale-factor=1 \
     --ignore-certificate-errors \
     --allow-insecure-localhost \
+    --js-flags="--max-old-space-size=2800" \
     "$KIOSK_URL" \
     >> "$LOG_FILE" 2>&1
 

@@ -66,19 +66,35 @@ while true; do
 
     # Periodic page reload (prevents memory leaks in long-running browser)
     # Uses Ctrl+Shift+R for hard reload to bypass cache and service workers
+    # Only reloads if browser hasn't been used recently (prevents interrupting users)
     if [ "$KIOSK_RELOAD_INTERVAL" -gt 0 ] && [ "$TIME_SINCE_RELOAD" -ge "$KIOSK_RELOAD_INTERVAL" ]; then
-        log "Performing periodic page reload (every ${KIOSK_RELOAD_INTERVAL}s) - HARD RELOAD"
+        # Check if user has been active recently
+        # Uses xprintidle to get milliseconds since last input (keyboard/mouse/touch)
+        IDLE_TIME_MS=0
+        IDLE_THRESHOLD_MS=$((5 * 60 * 1000))  # 5 minutes in milliseconds
 
-        # Get kiosk user's DISPLAY
-        export DISPLAY=:0
-        export XAUTHORITY=/home/pi/.Xauthority
+        if command -v xprintidle >/dev/null 2>&1; then
+            IDLE_TIME_MS=$(sudo -u pi DISPLAY=:0 xprintidle 2>/dev/null || echo 0)
+        fi
 
-        # Send Ctrl+Shift+R for hard reload (bypasses cache and service workers)
-        # This is more effective than F5 for clearing memory leaks
-        sudo -u pi DISPLAY=:0 xdotool search --class chromium key ctrl+shift+r 2>/dev/null || true
+        if [ "$IDLE_TIME_MS" -ge "$IDLE_THRESHOLD_MS" ]; then
+            log "Performing periodic page reload (every ${KIOSK_RELOAD_INTERVAL}s) - HARD RELOAD"
+            log "User idle for $((IDLE_TIME_MS / 1000 / 60)) minutes - safe to reload"
 
-        LAST_RELOAD_TIME=$(date +%s)
-        log "Page hard reloaded successfully (cache cleared)"
+            # Get kiosk user's DISPLAY
+            export DISPLAY=:0
+            export XAUTHORITY=/home/pi/.Xauthority
+
+            # Send Ctrl+Shift+R for hard reload (bypasses cache and service workers)
+            # This is more effective than F5 for clearing memory leaks
+            sudo -u pi DISPLAY=:0 xdotool search --class chromium key ctrl+shift+r 2>/dev/null || true
+
+            LAST_RELOAD_TIME=$(date +%s)
+            log "Page hard reloaded successfully (cache cleared)"
+        else
+            log "Reload scheduled but user is active (idle: $((IDLE_TIME_MS / 1000 / 60))m < 5m threshold) - postponing reload"
+            # Don't reset timer - will try again on next check
+        fi
     fi
 
     # Log status every 10 checks (for debugging)

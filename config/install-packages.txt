@@ -5,5 +5,8 @@
 # xinput - Required for touchscreen coordinate transformation
 xinput
 
+# xprintidle - Detect user idle time for smart page reloads
+xprintidle
+
 # prometheus-node-exporter - System metrics collection for monitoring
 prometheus-node-exporter

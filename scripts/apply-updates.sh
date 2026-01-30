@@ -147,22 +147,32 @@ enable_services_after_install() {
             log_info "Enabling services: $SERVICES"
 
             for service in $SERVICES; do
-                # Check if service unit exists
-                if systemctl list-unit-files | grep -q "^${service}.service"; then
-                    # Enable and start the service
-                    if systemctl enable "$service" 2>&1 | tee -a "$LOG_FILE"; then
+                # Check if service unit exists using systemctl directly
+                if systemctl list-unit-files "${service}.service" >/dev/null 2>&1; then
+                    # Enable the service (idempotent - safe to run multiple times)
+                    if systemctl enable "$service" >/dev/null 2>&1; then
                         log_info "✓ Enabled service: $service"
                     else
-                        log_warn "Failed to enable service: $service"
+                        # Already enabled or failed - check which
+                        if systemctl is-enabled "$service" >/dev/null 2>&1; then
+                            log_info "✓ Service already enabled: $service"
+                        else
+                            log_warn "Failed to enable service: $service"
+                        fi
                     fi
 
-                    if systemctl start "$service" 2>&1 | tee -a "$LOG_FILE"; then
-                        log_info "✓ Started service: $service"
+                    # Start the service if not already running
+                    if systemctl is-active "$service" >/dev/null 2>&1; then
+                        log_info "✓ Service already running: $service"
                     else
-                        log_warn "Failed to start service: $service (may already be running)"
+                        if systemctl start "$service" 2>&1 | tee -a "$LOG_FILE"; then
+                            log_info "✓ Started service: $service"
+                        else
+                            log_warn "Failed to start service: $service"
+                        fi
                     fi
                 else
-                    log_warn "Service unit not found: $service (package may not be installed yet)"
+                    log_warn "Service unit not found: $service.service"
                 fi
             done
         fi

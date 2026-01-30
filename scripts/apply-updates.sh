@@ -76,8 +76,10 @@ apply_config_updates() {
         log_info "Configuration changes detected"
 
         # Backup current config
+        BACKUP_FILE=""
         if [ -f "$KIOSK_CONFIG" ]; then
-            cp "$KIOSK_CONFIG" "${KIOSK_CONFIG}.backup.$(date +%Y%m%d-%H%M%S)"
+            BACKUP_FILE="${KIOSK_CONFIG}.backup.$(date +%Y%m%d-%H%M%S)"
+            cp "$KIOSK_CONFIG" "$BACKUP_FILE"
             log_info "Backed up current config"
         fi
 
@@ -88,8 +90,10 @@ apply_config_updates() {
         log_info "✓ Applied new configuration"
 
         # Log what changed
-        log_info "Configuration changes:"
-        diff -u "${KIOSK_CONFIG}.backup."* "$KIOSK_CONFIG" | tail -n +3 | grep '^[-+]' | tee -a "$LOG_FILE" || true
+        if [ -n "$BACKUP_FILE" ] && [ -f "$BACKUP_FILE" ]; then
+            log_info "Configuration changes:"
+            diff -u "$BACKUP_FILE" "$KIOSK_CONFIG" | tail -n +3 | grep '^[-+]' | tee -a "$LOG_FILE" || true
+        fi
 
         return 0  # Config changed, need restart
     else
@@ -120,8 +124,9 @@ apply_script_updates() {
             log_info "watchdog.sh updated"
             cp "${REPO_DIR}/scripts/watchdog.sh" "${KIOSK_DIR}/watchdog.sh"
             chmod +x "${KIOSK_DIR}/watchdog.sh"
-            systemctl restart kiosk-watchdog.service
-            log_info "✓ Restarted watchdog service"
+            # Use --no-block to avoid deadlock during boot
+            systemctl --no-block restart kiosk-watchdog.service
+            log_info "✓ Restarted watchdog service (non-blocking)"
         fi
     fi
 

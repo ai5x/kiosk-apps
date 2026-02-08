@@ -2,6 +2,11 @@
 # Openbox Autostart - Landscape Mode
 # No screen rotation applied
 
+# Apply display configuration (ensures HDMI is configured even if hotplugged)
+if [ -x "/opt/kiosk-apps/scripts/apply-display-config.sh" ]; then
+    /opt/kiosk-apps/scripts/apply-display-config.sh 2>> /tmp/openbox-autostart.log &
+fi
+
 # Disable screen blanking and power management
 xset s off
 xset -dpms

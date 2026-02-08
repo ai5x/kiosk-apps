@@ -1,0 +1,8 @@
+# Udev rule to automatically apply display configuration when HDMI is connected
+# This handles hot-plug events where HDMI cable is disconnected and reconnected
+#
+# Note: We use systemd-run to execute the script asynchronously to avoid blocking udev
+
+# Trigger on DRM/display device changes
+# This catches HDMI connection/disconnection events
+ACTION=="change", KERNEL=="card[0-9]*", SUBSYSTEM=="drm", RUN+="/usr/bin/systemd-run --no-block /opt/kiosk-apps/scripts/apply-display-config.sh"

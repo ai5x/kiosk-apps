@@ -511,6 +511,21 @@ kiosk-apps/
 **Commit:** c4cf182 (2026-01-23)
 **Version:** v1.1.20
 
+### Issue: HDMI display not working after hotplug
+**Symptoms:** If kiosk boots without HDMI connected, display won't work when cable is later plugged in
+**Cause:** X11 doesn't detect display at boot, xrandr configuration not reapplied on hotplug
+**Fix:** Implemented HDMI hotplug detection system
+- Created `scripts/apply-display-config.sh` to dynamically detect and configure HDMI output
+- Added udev rule `config/99-hdmi-hotplug.rules` to trigger on DRM device changes
+- Updated all openbox autostart scripts to use dynamic HDMI detection instead of hardcoded HDMI-1
+- Script automatically detects HDMI output name (HDMI-1, HDMI-A-1, etc.) and applies rotation
+**Benefits:**
+- Display works even if cable connected after boot
+- Handles different HDMI output naming schemes
+- Automatic reconfiguration when display reconnected
+**Commit:** TBD (2026-02-08)
+**Version:** v1.2.1
+
 ### Issue: False positive xinput installation detection
 **Symptoms:** Kiosk unnecessarily restarts lightdm on every boot even when xinput already installed
 **Cause:** Detection logic matched "0 newly installed" as a trigger condition

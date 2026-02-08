@@ -406,6 +406,37 @@ apply_display_config() {
         fi
     fi
 
+    # Deploy display configuration script (for HDMI hot-plug support)
+    if [ -f "${REPO_DIR}/scripts/apply-display-config.sh" ]; then
+        if ! diff -q "${REPO_DIR}/scripts/apply-display-config.sh" "/opt/kiosk-apps/scripts/apply-display-config.sh" >/dev/null 2>&1; then
+            log_info "Updating display configuration script..."
+            cp "${REPO_DIR}/scripts/apply-display-config.sh" "/opt/kiosk-apps/scripts/apply-display-config.sh"
+            chmod +x "/opt/kiosk-apps/scripts/apply-display-config.sh"
+            log_info "✓ Display configuration script updated"
+        else
+            log_info "✓ Display configuration script unchanged"
+        fi
+    fi
+
+    # Deploy udev rule for HDMI hot-plug
+    if [ -f "${REPO_DIR}/config/99-hdmi-hotplug.rules" ]; then
+        if ! diff -q "${REPO_DIR}/config/99-hdmi-hotplug.rules" "/etc/udev/rules.d/99-hdmi-hotplug.rules" >/dev/null 2>&1; then
+            log_info "Updating udev rule for HDMI hot-plug..."
+            cp "${REPO_DIR}/config/99-hdmi-hotplug.rules" "/etc/udev/rules.d/99-hdmi-hotplug.rules"
+            chmod 644 /etc/udev/rules.d/99-hdmi-hotplug.rules
+
+            # Reload udev rules
+            udevadm control --reload-rules
+            log_info "✓ HDMI hotplug udev rule updated and reloaded"
+
+            # Trigger rule for currently connected displays
+            log_info "Applying display configuration to currently connected HDMI..."
+            /opt/kiosk-apps/scripts/apply-display-config.sh &
+        else
+            log_info "✓ HDMI hotplug udev rule unchanged"
+        fi
+    fi
+
     return $restart_needed
 }
 

@@ -4,12 +4,22 @@
 LOG_FILE="/tmp/openbox-autostart.log"
 echo "$(date): Starting openbox autostart (portrait-inverted mode)" > "$LOG_FILE"
 
-# Rotate display to inverted portrait mode
-/usr/bin/xrandr --output HDMI-1 --rotate left 2>> "$LOG_FILE"
-echo "$(date): xrandr completed" >> "$LOG_FILE"
+# Apply display configuration (handles any HDMI output)
+if [ -x "/opt/kiosk-apps/scripts/apply-display-config.sh" ]; then
+    echo "$(date): Running display config script" >> "$LOG_FILE"
+    /opt/kiosk-apps/scripts/apply-display-config.sh 2>> "$LOG_FILE"
+else
+    # Fallback to direct xrandr if script not available
+    echo "$(date): Using fallback xrandr method" >> "$LOG_FILE"
+    HDMI_OUTPUT=$(xrandr | grep -E "^(HDMI|HDMI-A|HDMI-1)" | grep " connected" | awk '{print $1}' | head -1)
+    if [ -n "$HDMI_OUTPUT" ]; then
+        /usr/bin/xrandr --output "$HDMI_OUTPUT" --rotate left 2>> "$LOG_FILE"
+    fi
+fi
+echo "$(date): Display configuration completed" >> "$LOG_FILE"
 
 # Wait for X and input devices to fully initialize
-sleep 5
+sleep 3
 
 # Rotate touchscreen input to match display rotation (270° clockwise)
 # Retry up to 10 times to find touch devices (timing issue on some systems)

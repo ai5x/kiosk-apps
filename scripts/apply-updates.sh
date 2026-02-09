@@ -437,6 +437,22 @@ apply_display_config() {
         fi
     fi
 
+    # Deploy udev rule for touchscreen USB power management
+    if [ -f "${REPO_DIR}/config/50-touchscreen-power.rules" ]; then
+        if ! diff -q "${REPO_DIR}/config/50-touchscreen-power.rules" "/etc/udev/rules.d/50-touchscreen-power.rules" >/dev/null 2>&1; then
+            log_info "Updating udev rule for touchscreen power management..."
+            cp "${REPO_DIR}/config/50-touchscreen-power.rules" "/etc/udev/rules.d/50-touchscreen-power.rules"
+            chmod 644 /etc/udev/rules.d/50-touchscreen-power.rules
+
+            # Reload udev rules and trigger for currently connected devices
+            udevadm control --reload-rules
+            udevadm trigger --action=add --subsystem=usb
+            log_info "✓ Touchscreen power management udev rule updated and applied"
+        else
+            log_info "✓ Touchscreen power management udev rule unchanged"
+        fi
+    fi
+
     return $restart_needed
 }
 

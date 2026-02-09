@@ -65,6 +65,14 @@ xset s off
 xset -dpms
 xset s noblank
 
+# Disable CPU and PCIe power management for industrial reliability
+if [ -x "/opt/kiosk-apps/scripts/disable-power-management.sh" ]; then
+    echo "$(date): Disabling CPU/PCIe power management" >> "$LOG_FILE"
+    /opt/kiosk-apps/scripts/disable-power-management.sh 2>> "$LOG_FILE"
+else
+    echo "$(date): Power management script not found" >> "$LOG_FILE"
+fi
+
 # Hide mouse cursor after inactivity
 unclutter -idle 0.1 -root &
 

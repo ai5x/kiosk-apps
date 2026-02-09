@@ -12,6 +12,11 @@ xset s off
 xset -dpms
 xset s noblank
 
+# Disable CPU and PCIe power management for industrial reliability
+if [ -x "/opt/kiosk-apps/scripts/disable-power-management.sh" ]; then
+    /opt/kiosk-apps/scripts/disable-power-management.sh 2>> /tmp/openbox-autostart.log
+fi
+
 # Hide mouse cursor after inactivity
 unclutter -idle 0.1 -root &
 

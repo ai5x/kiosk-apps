@@ -495,6 +495,16 @@ main() {
         critical_packages_installed=0
     fi
 
+    # Disable all power management features for industrial reliability
+    log_section "Disabling Power Management"
+    plymouth_message "Kiosk-Apps: Disabling power management..."
+    if [ -x "${REPO_DIR}/scripts/disable-power-management.sh" ]; then
+        "${REPO_DIR}/scripts/disable-power-management.sh"
+        log_info "✓ Power management features disabled"
+    else
+        log_warn "Power management script not found or not executable"
+    fi
+
     # If critical packages (xinput) or display config changed, apply transformation immediately
     if [ $critical_packages_installed -eq 0 ] || [ $display_changed -eq 0 ]; then
         log_section "Applying Touchscreen Transformation"

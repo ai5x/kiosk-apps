@@ -558,6 +558,35 @@ kiosk-apps/
 **Commits:** 535d0f5, [TBD] (2026-02-08)
 **Versions:** v1.2.4 (device-specific), v1.2.5 (global)
 
+### Enhancement: Complete power management disable for industrial reliability (v1.2.6)
+**Motivation:** Industrial kiosk applications prioritize 100% uptime and consistent performance over power saving. After fixing USB autosuspend issues, analysis revealed additional power management features that could impact reliability.
+**Additional Power Features Disabled:**
+1. **CPU Frequency Scaling**
+   - Changed governor from "ondemand" to "performance"
+   - CPUs now run at max 2.4 GHz constantly (previously scaled 1.5-2.4 GHz)
+   - Ensures consistent performance, eliminates frequency scaling delays
+2. **PCIe Power Management**
+   - PCIe bridge and RP1 south bridge (handles USB/Ethernet) set to "on"
+   - Prevents PCIe bus suspension
+   - Additional layer of protection for USB reliability
+**Implementation:**
+- Created `scripts/disable-power-management.sh` - sets CPU governor and PCIe power control
+- Called from `apply-updates.sh` on every OTA update
+- Called from all openbox autostart scripts on every boot
+- Logs to `/var/log/kiosk-power-mgmt.log` for audit trail
+**Complete Power Management Status:**
+- ✅ USB autosuspend: DISABLED (udev rule + kernel parameter)
+- ✅ Display DPMS: DISABLED (xset -dpms)
+- ✅ Screen blanking: DISABLED (xset s off/noblank)
+- ✅ CPU frequency scaling: DISABLED (performance governor)
+- ✅ PCIe power management: DISABLED (all devices set to "on")
+- ✅ Bluetooth: DISABLED (service inactive)
+- ✅ Laptop mode: DISABLED (vm.laptop_mode=0)
+**Result:** Zero power management features active - maximum reliability for 24/7 industrial operation
+**Testing:** Verified on kiosk 192.168.1.42 - all CPUs at 2400 MHz, all PCIe devices "on"
+**Commit:** [TBD] (2026-02-08)
+**Version:** v1.2.6
+
 ### Issue: Touchscreen detection wasting boot time on non-touch kiosks
 **Symptoms:** HDMI-only kiosks (without touchscreen hardware) waste 10+ seconds at boot attempting to detect non-existent touchscreen devices, creating confusing "No touch devices found, attempt 1/10" log messages
 **Root Cause:**

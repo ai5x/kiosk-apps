@@ -544,8 +544,8 @@ kiosk-apps/
 - Easy per-kiosk configuration via ENABLE_TOUCHSCREEN_TRANSFORM=false
 - No impact on kiosks that actually have touchscreens
 **Testing:** Kiosk at 192.168.1.42 (HDMI-only) - touchscreen detection now skipped, boot time improved
-**Commit:** 0124ed5 + TBD (2026-02-08)
-**Version:** v1.2.2
+**Commits:** 0124ed5, 565719c (2026-02-08)
+**Version:** v1.2.3
 
 ### Issue: False positive xinput installation detection
 **Symptoms:** Kiosk unnecessarily restarts lightdm on every boot even when xinput already installed

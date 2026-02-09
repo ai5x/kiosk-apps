@@ -1,0 +1,11 @@
+# Disable USB autosuspend globally for all USB devices
+# Industrial kiosk application - reliability over power saving
+#
+# This rule ensures all USB devices remain active and never suspend.
+# Critical for industrial applications where reliability > power saving.
+#
+# Applies to: All USB devices (keyboard, mouse, touchscreen, etc.)
+# Effect: USB devices will never be suspended by power management
+# Benefit: Eliminates USB device reliability issues from power management
+
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"

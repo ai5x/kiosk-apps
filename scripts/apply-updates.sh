@@ -437,19 +437,25 @@ apply_display_config() {
         fi
     fi
 
-    # Deploy udev rule for touchscreen USB power management
-    if [ -f "${REPO_DIR}/config/50-touchscreen-power.rules" ]; then
-        if ! diff -q "${REPO_DIR}/config/50-touchscreen-power.rules" "/etc/udev/rules.d/50-touchscreen-power.rules" >/dev/null 2>&1; then
-            log_info "Updating udev rule for touchscreen power management..."
-            cp "${REPO_DIR}/config/50-touchscreen-power.rules" "/etc/udev/rules.d/50-touchscreen-power.rules"
-            chmod 644 /etc/udev/rules.d/50-touchscreen-power.rules
+    # Deploy udev rule for global USB power management disable
+    if [ -f "${REPO_DIR}/config/50-usb-power-disable.rules" ]; then
+        if ! diff -q "${REPO_DIR}/config/50-usb-power-disable.rules" "/etc/udev/rules.d/50-usb-power-disable.rules" >/dev/null 2>&1; then
+            log_info "Updating udev rule for USB power management..."
+            cp "${REPO_DIR}/config/50-usb-power-disable.rules" "/etc/udev/rules.d/50-usb-power-disable.rules"
+            chmod 644 /etc/udev/rules.d/50-usb-power-disable.rules
+
+            # Remove old touchscreen-specific rule if present
+            if [ -f "/etc/udev/rules.d/50-touchscreen-power.rules" ]; then
+                rm -f /etc/udev/rules.d/50-touchscreen-power.rules
+                log_info "Removed old touchscreen-specific rule"
+            fi
 
             # Reload udev rules and trigger for currently connected devices
             udevadm control --reload-rules
-            udevadm trigger --action=add --subsystem=usb
-            log_info "✓ Touchscreen power management udev rule updated and applied"
+            udevadm trigger --subsystem-match=usb
+            log_info "✓ USB power management disabled globally"
         else
-            log_info "✓ Touchscreen power management udev rule unchanged"
+            log_info "✓ USB power management rule unchanged"
         fi
     fi
 

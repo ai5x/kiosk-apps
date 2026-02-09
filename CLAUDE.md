@@ -526,6 +526,33 @@ kiosk-apps/
 **Commit:** TBD (2026-02-08)
 **Version:** v1.2.1
 
+### Issue: Touchscreen stops working after ~20 minutes (USB autosuspend)
+**Symptoms:** Touchscreen works fine after boot but stops responding after approximately 20 minutes of operation. Only a reboot restores function. Physical USB connections never touched.
+**Root Cause:**
+- USB autosuspend enabled for touchscreen device (USB 1-1: Siliconworks 29bd:9302)
+- Kernel automatically suspends device after inactivity timeout (2 seconds idle)
+- After ~20 minutes without touch input, device enters suspended state
+- Suspended USB device does not respond to touch events
+- Device remains suspended until system reboot
+**Investigation Evidence:**
+- `/sys/bus/usb/devices/1-1/power/control` was set to "auto" (autosuspend enabled)
+- `/sys/bus/usb/devices/1-1/power/autosuspend` was 2 seconds
+- dmesg showed USB disconnect/reconnect events during boot (re-enumeration)
+- Runtime status would change from "active" to "suspended" after inactivity
+**Fix:**
+- Created udev rule `config/50-touchscreen-power.rules` to force power/control="on"
+- Rule matches USB vendor/product ID (29bd:9302) and disables autosuspend
+- Updated `apply-updates.sh` to deploy rule and trigger for connected devices
+- Rule persists across reboots and is deployed via OTA
+**Benefits:**
+- Touchscreen never suspended by USB power management
+- Eliminates 20-minute failure pattern
+- No performance impact (touchscreen always active)
+- Automatically deployed to all kiosks
+**Testing:** Applied to kiosk 192.168.1.42, verified power control="on", monitoring for extended runtime
+**Commit:** 535d0f5 (2026-02-08)
+**Version:** v1.2.4
+
 ### Issue: Touchscreen detection wasting boot time on non-touch kiosks
 **Symptoms:** HDMI-only kiosks (without touchscreen hardware) waste 10+ seconds at boot attempting to detect non-existent touchscreen devices, creating confusing "No touch devices found, attempt 1/10" log messages
 **Root Cause:**

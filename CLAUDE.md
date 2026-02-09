@@ -526,6 +526,27 @@ kiosk-apps/
 **Commit:** TBD (2026-02-08)
 **Version:** v1.2.1
 
+### Issue: Touchscreen detection wasting boot time on non-touch kiosks
+**Symptoms:** HDMI-only kiosks (without touchscreen hardware) waste 10+ seconds at boot attempting to detect non-existent touchscreen devices, creating confusing "No touch devices found, attempt 1/10" log messages
+**Root Cause:**
+- `ENABLE_TOUCHSCREEN_TRANSFORM=true` was hardcoded globally in config
+- Openbox autostart scripts always attempted touchscreen detection (10 attempts)
+- Using `source` command to load config failed silently in openbox environment - variables weren't being set
+**Fix:**
+1. Made openbox autostart scripts respect `ENABLE_TOUCHSCREEN_TRANSFORM` config flag
+2. Reduced detection attempts from 10 to 3 (saves ~7 seconds)
+3. **Critical: Changed `source` to `.` (dot) notation** - `source` doesn't work reliably in openbox environment
+4. Added config documentation explaining the option for HDMI-only displays
+5. Improved error handling (`2>/dev/null`, `|| true`)
+**Benefits:**
+- Faster boot times on non-touch kiosks (~10 seconds saved)
+- Cleaner logs without repeated "device not found" messages
+- Easy per-kiosk configuration via ENABLE_TOUCHSCREEN_TRANSFORM=false
+- No impact on kiosks that actually have touchscreens
+**Testing:** Kiosk at 192.168.1.42 (HDMI-only) - touchscreen detection now skipped, boot time improved
+**Commit:** 0124ed5 + TBD (2026-02-08)
+**Version:** v1.2.2
+
 ### Issue: False positive xinput installation detection
 **Symptoms:** Kiosk unnecessarily restarts lightdm on every boot even when xinput already installed
 **Cause:** Detection logic matched "0 newly installed" as a trigger condition

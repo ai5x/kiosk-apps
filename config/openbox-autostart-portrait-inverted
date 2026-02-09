@@ -5,8 +5,9 @@ LOG_FILE="/tmp/openbox-autostart.log"
 echo "$(date): Starting openbox autostart (portrait-inverted mode)" > "$LOG_FILE"
 
 # Load kiosk configuration
+# IMPORTANT: Use . (dot) instead of source - source doesn't work reliably in openbox environment
 if [ -f "/opt/kiosk/.env" ]; then
-    source "/opt/kiosk/.env"
+    . /opt/kiosk/.env
     echo "$(date): Loaded kiosk configuration" >> "$LOG_FILE"
 fi
 

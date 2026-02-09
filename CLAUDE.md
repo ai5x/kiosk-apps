@@ -549,9 +549,14 @@ kiosk-apps/
 - Eliminates 20-minute failure pattern
 - No performance impact (touchscreen always active)
 - Automatically deployed to all kiosks
-**Testing:** Applied to kiosk 192.168.1.42, verified power control="on", monitoring for extended runtime
-**Commit:** 535d0f5 (2026-02-08)
-**Version:** v1.2.4
+**Evolution to Global Solution (v1.2.5):**
+- Initial fix (v1.2.4) was device-specific (touchscreen only)
+- Upgraded to global USB power management disable for industrial reliability
+- All USB devices now immune to power management suspension
+- Kernel parameter added: `usbcore.autosuspend=-1`
+**Testing:** Applied to kiosk 192.168.1.42, all USB devices forced "on", extended runtime testing
+**Commits:** 535d0f5, [TBD] (2026-02-08)
+**Versions:** v1.2.4 (device-specific), v1.2.5 (global)
 
 ### Issue: Touchscreen detection wasting boot time on non-touch kiosks
 **Symptoms:** HDMI-only kiosks (without touchscreen hardware) waste 10+ seconds at boot attempting to detect non-existent touchscreen devices, creating confusing "No touch devices found, attempt 1/10" log messages

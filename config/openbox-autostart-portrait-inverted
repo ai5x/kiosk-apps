@@ -4,6 +4,12 @@
 LOG_FILE="/tmp/openbox-autostart.log"
 echo "$(date): Starting openbox autostart (portrait-inverted mode)" > "$LOG_FILE"
 
+# Load kiosk configuration
+if [ -f "/opt/kiosk/.env" ]; then
+    source "/opt/kiosk/.env"
+    echo "$(date): Loaded kiosk configuration" >> "$LOG_FILE"
+fi
+
 # Apply display configuration (handles any HDMI output)
 if [ -x "/opt/kiosk-apps/scripts/apply-display-config.sh" ]; then
     echo "$(date): Running display config script" >> "$LOG_FILE"
@@ -22,26 +28,33 @@ echo "$(date): Display configuration completed" >> "$LOG_FILE"
 sleep 3
 
 # Rotate touchscreen input to match display rotation (270° clockwise)
-# Retry up to 10 times to find touch devices (timing issue on some systems)
-echo "$(date): Looking for touch devices" >> "$LOG_FILE"
-MAX_ATTEMPTS=10
-ATTEMPT=1
-while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
-    DEVICES=$(/usr/bin/xinput list | grep -i "touch" | grep -o "id=[0-9]*" | cut -d= -f2)
-    if [ -n "$DEVICES" ]; then
-        echo "$(date): Found touch devices on attempt $ATTEMPT" >> "$LOG_FILE"
-        for device in $DEVICES; do
-            echo "$(date): Setting transformation for device $device" >> "$LOG_FILE"
-            /usr/bin/xinput set-prop $device 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1 2>> "$LOG_FILE"
-        done
-        break
-    else
-        echo "$(date): No touch devices found, attempt $ATTEMPT/$MAX_ATTEMPTS" >> "$LOG_FILE"
-        sleep 1
-        ATTEMPT=$((ATTEMPT + 1))
-    fi
-done
-echo "$(date): Touch configuration completed" >> "$LOG_FILE"
+# Check if touchscreen transformation is enabled
+ENABLE_TOUCHSCREEN_TRANSFORM="${ENABLE_TOUCHSCREEN_TRANSFORM:-true}"
+if [ "$ENABLE_TOUCHSCREEN_TRANSFORM" = "true" ]; then
+    echo "$(date): Looking for touch devices (max 3 attempts)" >> "$LOG_FILE"
+    MAX_ATTEMPTS=3
+    ATTEMPT=1
+    while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+        DEVICES=$(/usr/bin/xinput list 2>/dev/null | grep -i "touch" | grep -o "id=[0-9]*" | cut -d= -f2 || true)
+        if [ -n "$DEVICES" ]; then
+            echo "$(date): Found touch devices on attempt $ATTEMPT" >> "$LOG_FILE"
+            for device in $DEVICES; do
+                echo "$(date): Setting transformation for device $device" >> "$LOG_FILE"
+                /usr/bin/xinput set-prop $device 'Coordinate Transformation Matrix' 0 -1 1 1 0 0 0 0 1 2>> "$LOG_FILE"
+            done
+            break
+        else
+            echo "$(date): No touch devices found, attempt $ATTEMPT/$MAX_ATTEMPTS" >> "$LOG_FILE"
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                sleep 1
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+        fi
+    done
+    echo "$(date): Touch configuration completed" >> "$LOG_FILE"
+else
+    echo "$(date): Touchscreen transformation disabled, skipping" >> "$LOG_FILE"
+fi
 
 # Disable screen blanking and power management
 xset s off

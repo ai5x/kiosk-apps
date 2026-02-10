@@ -1,0 +1,8 @@
+# Disable ALL power management at hardware level
+# Industrial kiosk - reliability over power saving
+
+# Disable PCI/PCIe power management for all PCI devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{power/control}="on"
+
+# Disable USB power management for all USB devices (redundant with 50-usb-power-disable.rules)
+ACTION=="add", SUBSYSTEM=="usb", TEST=="power/control", ATTR{power/control}="on"

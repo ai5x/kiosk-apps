@@ -1,0 +1,15 @@
+[Unit]
+Description=Disable CPU Power Saving (Force Performance Mode)
+Documentation=https://github.com/ai5x/kiosk-apps
+After=sysinit.target
+Before=basic.target
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo performance > $cpu 2>/dev/null || true; done'
+ExecStart=/bin/bash -c 'logger "CPU governors set to performance mode"'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=basic.target

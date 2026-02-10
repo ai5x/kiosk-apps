@@ -462,6 +462,62 @@ apply_display_config() {
     return $restart_needed
 }
 
+# Deploy PCIe power management udev rule
+apply_pcie_power_rule() {
+    if [ -f "${REPO_DIR}/config/99-disable-power-management.rules" ]; then
+        if ! diff -q "${REPO_DIR}/config/99-disable-power-management.rules" "/etc/udev/rules.d/99-disable-power-management.rules" >/dev/null 2>&1; then
+            log_info "Deploying PCIe/PCI power management udev rule..."
+            cp "${REPO_DIR}/config/99-disable-power-management.rules" "/etc/udev/rules.d/99-disable-power-management.rules"
+            chmod 644 /etc/udev/rules.d/99-disable-power-management.rules
+
+            # Reload and trigger
+            udevadm control --reload-rules
+            udevadm trigger --subsystem-match=pci
+
+            log_info "✓ PCIe power management udev rule deployed"
+        else
+            log_info "✓ PCIe power management rule unchanged"
+        fi
+    fi
+}
+
+# Deploy CPU performance mode systemd service
+apply_cpu_performance_service() {
+    local service_changed=false
+
+    if [ -f "${REPO_DIR}/systemd/disable-cpu-powersave.service" ]; then
+        if ! diff -q "${REPO_DIR}/systemd/disable-cpu-powersave.service" "/etc/systemd/system/disable-cpu-powersave.service" >/dev/null 2>&1; then
+            log_info "Installing CPU performance mode service..."
+            cp "${REPO_DIR}/systemd/disable-cpu-powersave.service" "/etc/systemd/system/disable-cpu-powersave.service"
+            chmod 644 /etc/systemd/system/disable-cpu-powersave.service
+
+            # Reload systemd and enable service
+            systemctl daemon-reload
+            systemctl enable disable-cpu-powersave.service
+            systemctl start disable-cpu-powersave.service
+
+            log_info "✓ CPU performance mode service installed and started"
+            service_changed=true
+        else
+            # Ensure service is enabled even if file hasn't changed
+            if ! systemctl is-enabled disable-cpu-powersave.service >/dev/null 2>&1; then
+                systemctl enable disable-cpu-powersave.service
+                systemctl start disable-cpu-powersave.service
+                log_info "✓ CPU performance mode service enabled"
+                service_changed=true
+            else
+                log_info "✓ CPU performance mode service unchanged"
+            fi
+        fi
+    fi
+
+    if [ "$service_changed" = true ]; then
+        # Verify CPUs are in performance mode
+        PERF_COUNT=$(grep -c "performance" /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor 2>/dev/null || echo 0)
+        log_info "  $PERF_COUNT CPU cores set to performance mode"
+    fi
+}
+
 # Deploy Xbox controller (xpad) configuration
 apply_xpad_config() {
     # Deploy modprobe config for xpad driver (Xbox controllers)
@@ -520,8 +576,13 @@ main() {
     # Apply Xbox controller configuration
     apply_xpad_config
 
-    # Disable all power management features for industrial reliability
-    log_section "Disabling Power Management"
+    # Apply permanent power management configurations
+    log_section "Applying Power Management Configuration"
+    apply_pcie_power_rule
+    apply_cpu_performance_service
+
+    # Disable all power management features for industrial reliability (runtime)
+    log_section "Disabling Power Management (Runtime)"
     plymouth_message "Kiosk-Apps: Disabling power management..."
     if [ -x "${REPO_DIR}/scripts/disable-power-management.sh" ]; then
         "${REPO_DIR}/scripts/disable-power-management.sh"

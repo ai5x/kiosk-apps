@@ -584,8 +584,49 @@ kiosk-apps/
 - ✅ Laptop mode: DISABLED (vm.laptop_mode=0)
 **Result:** Zero power management features active - maximum reliability for 24/7 industrial operation
 **Testing:** Verified on kiosk 192.168.1.42 - all CPUs at 2400 MHz, all PCIe devices "on"
-**Commit:** [TBD] (2026-02-08)
+**Commit:** ac62085 (2026-02-08)
 **Version:** v1.2.6
+
+### Enhancement: Permanent power management disable configuration (v1.2.7)
+**Motivation:** v1.2.6 disabled power management via runtime scripts. For true industrial reliability, configuration must persist at boot time without depending on script execution order.
+**Permanent Configuration Added:**
+1. **CPU Performance Mode Systemd Service**
+   - Created `systemd/disable-cpu-powersave.service`
+   - Runs at early boot (after sysinit, before basic.target)
+   - Sets all CPU governors to "performance" via sysfs
+   - Enabled automatically, runs on every boot
+2. **PCIe Power Management Udev Rule**
+   - Created `config/99-disable-power-management.rules`
+   - Applies power/control="on" to all PCI/PCIe devices at hardware add time
+   - Ensures PCIe bus never suspends
+3. **Xbox Controller Auto-Poweroff Fix**
+   - Created `config/xpad.conf` modprobe configuration
+   - Disables xpad driver auto_poweroff feature
+   - Prevents Xbox controllers from sleeping and failing to reconnect
+   - Symptom fixed: Controller blinks when Xbox button pressed but won't reconnect
+**Implementation:**
+- Configurations deployed via apply-updates.sh OTA system
+- Systemd service: `/etc/systemd/system/disable-cpu-powersave.service`
+- Udev rule: `/etc/udev/rules.d/99-disable-power-management.rules`
+- Modprobe config: `/etc/modprobe.d/xpad.conf`
+**Boot-Time Power Management Status:**
+- ✅ USB autosuspend: kernel parameter + udev rule
+- ✅ Display DPMS: xset commands in openbox
+- ✅ CPU frequency scaling: systemd service (earliest boot)
+- ✅ PCIe power management: udev rule (hardware add)
+- ✅ Xbox controller sleep: modprobe.d configuration
+**Result:** ALL power management disabled at boot time, no dependency on script execution order
+**Testing:** Verified on kiosk 192.168.1.42 - all configs persist across reboot
+**Commit:** [TBD] (2026-02-08)
+**Version:** v1.2.7
+
+### Issue: Xbox Controller not reconnecting after sleep
+**Symptoms:** Xbox Series S|X controller auto-sleeps after inactivity. When pressing Xbox button to wake/reconnect, controller just blinks and doesn't reconnect to system.
+**Root Cause:** xpad kernel driver parameter `auto_poweroff=Y` (default) causes controllers to power off after idle. Reconnection via Xbox button was failing.
+**Fix:** Disabled auto_poweroff via modprobe.d configuration (see v1.2.7 above)
+**Testing:** Applied to kiosk 192.168.1.42, controller stays active indefinitely
+**Commit:** 6aaa3ed (2026-02-08)
+**Version:** v1.2.7
 
 ### Issue: Touchscreen detection wasting boot time on non-touch kiosks
 **Symptoms:** HDMI-only kiosks (without touchscreen hardware) waste 10+ seconds at boot attempting to detect non-existent touchscreen devices, creating confusing "No touch devices found, attempt 1/10" log messages

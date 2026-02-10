@@ -547,15 +547,39 @@ apply_plymouth_theme() {
             log_info "Updating Plymouth boot progress theme..."
             cp "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" "${THEME_DIR}/hs1-kiosk-theme.script"
             chmod 644 "${THEME_DIR}/hs1-kiosk-theme.script"
-            log_info "✓ Plymouth theme updated"
+            log_info "✓ Plymouth theme script updated"
 
             # Note: logo.png is NOT deployed - it's portrait-specific and already on kiosk
             if [ ! -f "${THEME_DIR}/logo.png" ]; then
                 log_warn "Plymouth logo.png missing at ${THEME_DIR}/logo.png"
                 log_warn "This is expected for first-time setup - logo must be deployed manually"
             fi
+
+            # Activate theme as default
+            log_info "Activating hs1-kiosk-theme as default Plymouth theme..."
+            update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth \
+                /usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth 100 >/dev/null 2>&1 || true
+            update-alternatives --set default.plymouth /usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth >/dev/null 2>&1
+            log_info "✓ Plymouth theme activated"
+
+            # Update initramfs to include new theme
+            log_info "Updating initramfs with new Plymouth theme..."
+            update-initramfs -u >/dev/null 2>&1 &
+            log_info "✓ Initramfs update started (background)"
         else
             log_info "✓ Plymouth theme unchanged"
+
+            # Ensure theme is activated even if script unchanged (idempotent)
+            CURRENT_THEME=$(update-alternatives --query default.plymouth 2>/dev/null | grep "^Value:" | awk '{print $2}')
+            if [ "$CURRENT_THEME" != "/usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth" ]; then
+                log_info "Plymouth theme not active, activating..."
+                update-alternatives --install /usr/share/plymouth/themes/default.plymouth default.plymouth \
+                    /usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth 100 >/dev/null 2>&1 || true
+                update-alternatives --set default.plymouth /usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth >/dev/null 2>&1
+                log_info "✓ Plymouth theme activated"
+                update-initramfs -u >/dev/null 2>&1 &
+                log_info "✓ Initramfs update started (background)"
+            fi
         fi
     fi
 }

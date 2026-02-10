@@ -25,6 +25,18 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Source Plymouth progress functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "${SCRIPT_DIR}/plymouth-progress.sh" ]; then
+    source "${SCRIPT_DIR}/plymouth-progress.sh"
+else
+    # Fallback functions if progress script not found
+    init_progress() { :; }
+    send_progress() { :; }
+    increment_progress() { :; }
+    complete_progress() { :; }
+fi
+
 # Plymouth message helper (shows status on boot screen)
 plymouth_message() {
     if command -v plymouth >/dev/null 2>&1 && plymouth --ping 2>/dev/null; then
@@ -51,6 +63,16 @@ log_section() {
     echo "==========================================" | tee -a "$LOG_FILE"
 }
 
+# Check GitHub connectivity with short timeout (optimized for air-gapped)
+check_github_connectivity() {
+    # Fast check with 2-second timeout for air-gapped scenarios
+    if timeout 2 curl -sf https://github.com >/dev/null 2>&1; then
+        return 0  # GitHub reachable
+    else
+        return 1  # GitHub unreachable (air-gapped or no network)
+    fi
+}
+
 # Main sync and update logic
 main() {
     # Ensure log file exists and is writable
@@ -72,6 +94,10 @@ main() {
     log_section "Kiosk-Apps Auto-Update"
     log_info "Starting sync and update process..."
 
+    # Initialize Plymouth progress
+    init_progress
+    increment_progress 5 "Kiosk: Initializing..."
+
     # Verify running as root
     if [[ $EUID -ne 0 ]]; then
         log_error "This script must be run as root"
@@ -83,24 +109,29 @@ main() {
         cd "$REPO_DIR"
         STARTUP_COMMIT=$(git rev-parse HEAD 2>/dev/null)
         STARTUP_VERSION=$(git describe --tags --always 2>/dev/null || echo "${STARTUP_COMMIT:0:8}")
-        plymouth_message "Kiosk-Apps $STARTUP_VERSION: Checking for updates..."
+        increment_progress 5 "Kiosk $STARTUP_VERSION: Checking updates..."
         log_info "Current installed version: $STARTUP_VERSION"
     else
-        plymouth_message "Kiosk-Apps: Checking for updates..."
+        increment_progress 5 "Kiosk: Checking updates..."
     fi
 
     # Check if repo directory exists, if not try to clone
     if [ ! -d "$REPO_DIR" ]; then
         log_warn "Repository directory not found: $REPO_DIR"
         log_info "Attempting to clone repository for auto-recovery..."
+        increment_progress 5 "Kiosk: Checking network..."
 
-        # Check network connectivity before attempting clone
-        if ! timeout 5 curl -sf https://github.com >/dev/null 2>&1; then
+        # Check network connectivity before attempting clone (optimized for air-gapped)
+        if ! check_github_connectivity; then
             log_error "GitHub unreachable - cannot clone repository"
             log_error "Kiosk will continue with default configuration"
             log_error "Repository will be cloned on next boot when network is available"
-            exit 0
+            increment_progress 90 "Kiosk: No updates (offline)"
+            # Skip to applying current configuration
+            exec "${KIOSK_DIR}/start-kiosk.sh" || exit 0
         fi
+
+        increment_progress 5 "Kiosk: Cloning repository..."
 
         # Try to clone the repository
         if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -128,13 +159,16 @@ main() {
     # Check if git repo
     if [ ! -d ".git" ]; then
         log_warn "Not a git repository - running apply-updates anyway..."
+        increment_progress 10 "Kiosk: Applying configuration..."
         exec "${REPO_DIR}/scripts/apply-updates.sh"
     fi
 
-    # Check for network connectivity
-    if ! timeout 5 curl -sf https://github.com >/dev/null 2>&1; then
-        log_warn "GitHub unreachable - skipping git pull"
+    # Check for network connectivity (optimized for air-gapped)
+    increment_progress 10 "Kiosk: Checking for updates..."
+    if ! check_github_connectivity; then
+        log_warn "GitHub unreachable - skipping update check (air-gapped mode)"
         log_info "Continuing with current version..."
+        increment_progress 20 "Kiosk: Offline - applying config..."
         exec "${REPO_DIR}/scripts/apply-updates.sh"
     fi
 
@@ -146,7 +180,7 @@ main() {
 
     # Fetch latest changes and tags (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
-    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Fetching updates..."
+    increment_progress 10 "Kiosk $CURRENT_VERSION: Fetching..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
         if timeout 30 git fetch --tags "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
@@ -171,23 +205,25 @@ main() {
     REMOTE_VERSION=$(git describe --tags origin/master 2>/dev/null || echo "$REMOTE_SHORT")
     log_info "Remote version: $REMOTE_VERSION (commit: $REMOTE_SHORT)"
 
+    increment_progress 5 "Kiosk: Checking version..."
+
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
-        plymouth_message "Kiosk-Apps $CURRENT_VERSION: Up to date"
+        increment_progress 15 "Kiosk $CURRENT_VERSION: Up to date"
     else
         log_info "Updates available - pulling changes..."
-        plymouth_message "Kiosk-Apps: Updating to $REMOTE_VERSION..."
+        increment_progress 10 "Kiosk: Updating to $REMOTE_VERSION..."
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             NEW_SHORT="${NEW_COMMIT:0:8}"
             NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "$NEW_SHORT")
             log_info "✓ Updated to version: $NEW_VERSION (commit: $NEW_SHORT)"
-            plymouth_message "Kiosk-Apps: Updated to $NEW_VERSION"
+            increment_progress 5 "Kiosk: Updated to $NEW_VERSION"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
-            plymouth_message "Kiosk-Apps: Update failed, using $CURRENT_VERSION"
+            increment_progress 5 "Kiosk: Update failed, using $CURRENT_VERSION"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi
@@ -195,12 +231,13 @@ main() {
     # Execute apply-updates.sh to apply configuration changes
     log_section "Applying Updates"
     log_info "Running apply-updates.sh to apply configuration and package updates..."
-    plymouth_message "Kiosk-Apps: Applying configuration updates..."
+    increment_progress 5 "Kiosk: Applying configuration..."
 
     echo ""
     echo ">>> Applying kiosk configuration updates..."
     echo ""
 
+    # Execute apply-updates.sh (it will handle remaining progress and Plymouth exit)
     exec "${REPO_DIR}/scripts/apply-updates.sh"
 }
 

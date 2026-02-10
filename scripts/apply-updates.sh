@@ -20,6 +20,16 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Source Plymouth progress functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "${SCRIPT_DIR}/plymouth-progress.sh" ]; then
+    source "${SCRIPT_DIR}/plymouth-progress.sh"
+else
+    # Fallback functions if progress script not found
+    increment_progress() { :; }
+    complete_progress() { :; }
+fi
+
 # Plymouth message helper (shows status on boot screen)
 plymouth_message() {
     if command -v plymouth >/dev/null 2>&1 && plymouth --ping 2>/dev/null; then
@@ -70,7 +80,7 @@ check_config_changes() {
 # Apply configuration updates
 apply_config_updates() {
     log_section "Configuration Updates"
-    plymouth_message "Kiosk-Apps: Checking configuration..."
+    increment_progress 5 "Kiosk: Checking configuration..."
 
     if check_config_changes; then
         log_info "Configuration changes detected"
@@ -182,7 +192,7 @@ enable_services_after_install() {
 # Apply package updates
 apply_package_updates() {
     log_section "Package Updates"
-    plymouth_message "Kiosk-Apps: Checking packages..."
+    increment_progress 5 "Kiosk: Checking packages..."
 
     local packages_changed=0
     local critical_packages_installed=0
@@ -196,11 +206,11 @@ apply_package_updates() {
 
         if [ -n "$PACKAGES" ]; then
             log_info "Installing packages: $PACKAGES"
-            plymouth_message "Kiosk-Apps: Installing packages..."
+            increment_progress 5 "Kiosk: Installing packages..."
 
             # Update package lists
             log_info "Updating package lists..."
-            plymouth_message "Kiosk-Apps: Updating package lists..."
+            increment_progress 5 "Kiosk: Updating apt cache..."
             if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
                 log_info "✓ Package lists updated"
             else
@@ -325,7 +335,7 @@ check_reboot_requirement() {
 # Apply display configuration updates
 apply_display_config() {
     log_section "Display Configuration"
-    plymouth_message "Kiosk-Apps: Configuring display..."
+    increment_progress 5 "Kiosk: Configuring display..."
 
     local restart_needed=1
 
@@ -338,7 +348,7 @@ apply_display_config() {
     source "${REPO_DIR}/config/.env"
     ORIENTATION=${DISPLAY_ORIENTATION:-landscape}
     log_info "Target orientation: $ORIENTATION"
-    plymouth_message "Kiosk-Apps: Display mode: $ORIENTATION"
+    increment_progress 2 "Kiosk: Display mode: $ORIENTATION"
 
     # Deploy X server config for modesetting driver
     if [ -f "${REPO_DIR}/config/xorg-modesetting.conf" ]; then
@@ -575,15 +585,17 @@ main() {
 
     # Apply Xbox controller configuration
     apply_xpad_config
+    increment_progress 3 "Kiosk: Hardware configured"
 
     # Apply permanent power management configurations
     log_section "Applying Power Management Configuration"
+    increment_progress 3 "Kiosk: Configuring power..."
     apply_pcie_power_rule
     apply_cpu_performance_service
 
     # Disable all power management features for industrial reliability (runtime)
     log_section "Disabling Power Management (Runtime)"
-    plymouth_message "Kiosk-Apps: Disabling power management..."
+    increment_progress 3 "Kiosk: Disabling power mgmt..."
     if [ -x "${REPO_DIR}/scripts/disable-power-management.sh" ]; then
         "${REPO_DIR}/scripts/disable-power-management.sh"
         log_info "✓ Power management features disabled"
@@ -595,7 +607,7 @@ main() {
     if [ $critical_packages_installed -eq 0 ] || [ $display_changed -eq 0 ]; then
         log_section "Applying Touchscreen Transformation"
         log_info "Critical changes detected - applying touchscreen transformation to current session..."
-        plymouth_message "Kiosk-Apps: Configuring touchscreen..."
+        increment_progress 5 "Kiosk: Configuring touchscreen..."
 
         # Wait for X server and newly installed packages to be ready
         sleep 3
@@ -605,7 +617,7 @@ main() {
             log_info "Running transformation script..."
             /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh
             log_info "✓ Transformation script completed"
-            plymouth_message "Kiosk-Apps: Touchscreen configured"
+            increment_progress 3 "Kiosk: Touchscreen configured"
         else
             log_warn "Transformation script not found or not executable"
         fi
@@ -615,7 +627,7 @@ main() {
     if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ] || [ $critical_packages_installed -eq 0 ]; then
         log_section "Restarting Kiosk"
         log_info "Configuration, scripts, or display changed - restarting display manager..."
-        plymouth_message "Kiosk-Apps: Restarting display manager..."
+        increment_progress 5 "Kiosk: Restarting display..."
 
         # Give time for any pending operations
         sleep 2
@@ -624,12 +636,12 @@ main() {
         # Use --no-block to avoid deadlock with boot-time dependencies
         systemctl --no-block restart lightdm
         log_info "✓ Display manager restart initiated"
-        plymouth_message "Kiosk-Apps: Update complete, starting kiosk..."
+        increment_progress 5 "Kiosk: Update complete"
 
         log_info "Kiosk should now be running with updated configuration"
     else
         log_info "✓ No restart needed"
-        plymouth_message "Kiosk-Apps: Update complete, no restart needed"
+        increment_progress 10 "Kiosk: No restart needed"
     fi
 
     # Check if system reboot is required
@@ -659,8 +671,11 @@ main() {
     echo "========================================================"
     echo ""
 
-    # Final Plymouth message with version
-    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Ready"
+    # Complete progress and exit Plymouth (kiosk GUI will take over display)
+    log_info "Completing boot sequence, exiting Plymouth splash screen..."
+    complete_progress "Kiosk $CURRENT_VERSION: Starting..."
+
+    log_info "✓ Plymouth exited, kiosk GUI should now be visible"
 }
 
 # Run main function

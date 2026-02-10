@@ -70,7 +70,6 @@ check_config_changes() {
 # Apply configuration updates
 apply_config_updates() {
     log_section "Configuration Updates"
-    plymouth_message "Kiosk-Apps: Checking configuration..."
 
     if check_config_changes; then
         log_info "Configuration changes detected"
@@ -182,7 +181,6 @@ enable_services_after_install() {
 # Apply package updates
 apply_package_updates() {
     log_section "Package Updates"
-    plymouth_message "Kiosk-Apps: Checking packages..."
 
     local packages_changed=0
     local critical_packages_installed=0
@@ -196,11 +194,9 @@ apply_package_updates() {
 
         if [ -n "$PACKAGES" ]; then
             log_info "Installing packages: $PACKAGES"
-            plymouth_message "Kiosk-Apps: Installing packages..."
 
             # Update package lists
             log_info "Updating package lists..."
-            plymouth_message "Kiosk-Apps: Updating package lists..."
             if apt-get update 2>&1 | tee -a "$LOG_FILE"; then
                 log_info "✓ Package lists updated"
             else
@@ -325,7 +321,6 @@ check_reboot_requirement() {
 # Apply display configuration updates
 apply_display_config() {
     log_section "Display Configuration"
-    plymouth_message "Kiosk-Apps: Configuring display..."
 
     local restart_needed=1
 
@@ -338,7 +333,6 @@ apply_display_config() {
     source "${REPO_DIR}/config/.env"
     ORIENTATION=${DISPLAY_ORIENTATION:-landscape}
     log_info "Target orientation: $ORIENTATION"
-    plymouth_message "Kiosk-Apps: Display mode: $ORIENTATION"
 
     # Deploy X server config for modesetting driver
     if [ -f "${REPO_DIR}/config/xorg-modesetting.conf" ]; then
@@ -540,6 +534,32 @@ apply_xpad_config() {
     fi
 }
 
+# Deploy Plymouth boot progress theme
+apply_plymouth_theme() {
+    if [ -f "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" ]; then
+        THEME_DIR="/usr/share/plymouth/themes/hs1-kiosk-theme"
+
+        # Ensure theme directory exists
+        mkdir -p "$THEME_DIR"
+
+        # Deploy theme script
+        if ! diff -q "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" "${THEME_DIR}/hs1-kiosk-theme.script" >/dev/null 2>&1; then
+            log_info "Updating Plymouth boot progress theme..."
+            cp "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" "${THEME_DIR}/hs1-kiosk-theme.script"
+            chmod 644 "${THEME_DIR}/hs1-kiosk-theme.script"
+            log_info "✓ Plymouth theme updated"
+
+            # Note: logo.png is NOT deployed - it's portrait-specific and already on kiosk
+            if [ ! -f "${THEME_DIR}/logo.png" ]; then
+                log_warn "Plymouth logo.png missing at ${THEME_DIR}/logo.png"
+                log_warn "This is expected for first-time setup - logo must be deployed manually"
+            fi
+        else
+            log_info "✓ Plymouth theme unchanged"
+        fi
+    fi
+}
+
 # Main function
 main() {
     log_section "Applying Kiosk Updates"
@@ -565,16 +585,28 @@ main() {
         scripts_changed=0
     fi
 
-    if apply_display_config; then
-        display_changed=0
-    fi
+    # Stage 2 complete: Configuration loaded
+    plymouth_message "STAGE:2"
 
     if apply_package_updates; then
         critical_packages_installed=0
     fi
 
+    # Stage 3 complete: Packages installed
+    plymouth_message "STAGE:3"
+
+    if apply_display_config; then
+        display_changed=0
+    fi
+
+    # Stage 4 complete: Display configured
+    plymouth_message "STAGE:4"
+
     # Apply Xbox controller configuration
     apply_xpad_config
+
+    # Apply Plymouth boot progress theme
+    apply_plymouth_theme
 
     # Apply permanent power management configurations
     log_section "Applying Power Management Configuration"
@@ -583,7 +615,6 @@ main() {
 
     # Disable all power management features for industrial reliability (runtime)
     log_section "Disabling Power Management (Runtime)"
-    plymouth_message "Kiosk-Apps: Disabling power management..."
     if [ -x "${REPO_DIR}/scripts/disable-power-management.sh" ]; then
         "${REPO_DIR}/scripts/disable-power-management.sh"
         log_info "✓ Power management features disabled"
@@ -595,7 +626,6 @@ main() {
     if [ $critical_packages_installed -eq 0 ] || [ $display_changed -eq 0 ]; then
         log_section "Applying Touchscreen Transformation"
         log_info "Critical changes detected - applying touchscreen transformation to current session..."
-        plymouth_message "Kiosk-Apps: Configuring touchscreen..."
 
         # Wait for X server and newly installed packages to be ready
         sleep 3
@@ -605,7 +635,6 @@ main() {
             log_info "Running transformation script..."
             /opt/kiosk-apps/scripts/apply-touchscreen-transform.sh
             log_info "✓ Transformation script completed"
-            plymouth_message "Kiosk-Apps: Touchscreen configured"
         else
             log_warn "Transformation script not found or not executable"
         fi
@@ -615,7 +644,6 @@ main() {
     if [ $config_changed -eq 0 ] || [ $scripts_changed -eq 0 ] || [ $display_changed -eq 0 ] || [ $critical_packages_installed -eq 0 ]; then
         log_section "Restarting Kiosk"
         log_info "Configuration, scripts, or display changed - restarting display manager..."
-        plymouth_message "Kiosk-Apps: Restarting display manager..."
 
         # Give time for any pending operations
         sleep 2
@@ -624,16 +652,17 @@ main() {
         # Use --no-block to avoid deadlock with boot-time dependencies
         systemctl --no-block restart lightdm
         log_info "✓ Display manager restart initiated"
-        plymouth_message "Kiosk-Apps: Update complete, starting kiosk..."
 
         log_info "Kiosk should now be running with updated configuration"
     else
         log_info "✓ No restart needed"
-        plymouth_message "Kiosk-Apps: Update complete, no restart needed"
     fi
 
     # Check if system reboot is required
     check_reboot_requirement
+
+    # Stage 5 complete: System ready
+    plymouth_message "STAGE:5"
 
     log_section "Update Complete"
     log_info "Kiosk update process finished successfully"
@@ -659,8 +688,8 @@ main() {
     echo "========================================================"
     echo ""
 
-    # Final Plymouth message with version
-    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Ready"
+    # Plymouth will exit automatically after stage 5
+    # Chromium kiosk will indicate system is running
 }
 
 # Run main function

@@ -78,15 +78,15 @@ main() {
         exit 1
     fi
 
+    # Stage 0: Starting system (complete immediately)
+    plymouth_message "STAGE:0"
+
     # Display current version at startup (if repo exists)
     if [ -d "$REPO_DIR/.git" ]; then
         cd "$REPO_DIR"
         STARTUP_COMMIT=$(git rev-parse HEAD 2>/dev/null)
         STARTUP_VERSION=$(git describe --tags --always 2>/dev/null || echo "${STARTUP_COMMIT:0:8}")
-        plymouth_message "Kiosk-Apps $STARTUP_VERSION: Checking for updates..."
         log_info "Current installed version: $STARTUP_VERSION"
-    else
-        plymouth_message "Kiosk-Apps: Checking for updates..."
     fi
 
     # Check if repo directory exists, if not try to clone
@@ -144,9 +144,9 @@ main() {
     CURRENT_VERSION=$(git describe --tags --always 2>/dev/null || echo "$CURRENT_SHORT")
     log_info "Current version: $CURRENT_VERSION (commit: $CURRENT_SHORT)"
 
+    # Stage 1: Checking for updates (in progress)
     # Fetch latest changes and tags (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
-    plymouth_message "Kiosk-Apps $CURRENT_VERSION: Fetching updates..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
         if timeout 30 git fetch --tags "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
@@ -173,29 +173,29 @@ main() {
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
-        plymouth_message "Kiosk-Apps $CURRENT_VERSION: Up to date"
+        plymouth_message "UPDATE_STATUS:no_updates"
     else
         log_info "Updates available - pulling changes..."
-        plymouth_message "Kiosk-Apps: Updating to $REMOTE_VERSION..."
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             NEW_SHORT="${NEW_COMMIT:0:8}"
             NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "$NEW_SHORT")
             log_info "✓ Updated to version: $NEW_VERSION (commit: $NEW_SHORT)"
-            plymouth_message "Kiosk-Apps: Updated to $NEW_VERSION"
+            plymouth_message "UPDATE_STATUS:applied"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
-            plymouth_message "Kiosk-Apps: Update failed, using $CURRENT_VERSION"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi
 
+    # Stage 1 complete: Updates checked
+    plymouth_message "STAGE:1"
+
     # Execute apply-updates.sh to apply configuration changes
     log_section "Applying Updates"
     log_info "Running apply-updates.sh to apply configuration and package updates..."
-    plymouth_message "Kiosk-Apps: Applying configuration updates..."
 
     echo ""
     echo ">>> Applying kiosk configuration updates..."

@@ -462,6 +462,28 @@ apply_display_config() {
     return $restart_needed
 }
 
+# Deploy Xbox controller (xpad) configuration
+apply_xpad_config() {
+    # Deploy modprobe config for xpad driver (Xbox controllers)
+    if [ -f "${REPO_DIR}/config/xpad.conf" ]; then
+        if ! diff -q "${REPO_DIR}/config/xpad.conf" "/etc/modprobe.d/xpad.conf" >/dev/null 2>&1; then
+            log_info "Updating xpad (Xbox controller) configuration..."
+            cp "${REPO_DIR}/config/xpad.conf" "/etc/modprobe.d/xpad.conf"
+            chmod 644 /etc/modprobe.d/xpad.conf
+
+            # Apply to currently loaded xpad module if present
+            if lsmod | grep -q "^xpad"; then
+                log_info "Applying auto_poweroff=0 to loaded xpad module..."
+                echo N > /sys/module/xpad/parameters/auto_poweroff 2>/dev/null || true
+            fi
+
+            log_info "✓ Xbox controller auto-poweroff disabled"
+        else
+            log_info "✓ xpad configuration unchanged"
+        fi
+    fi
+}
+
 # Main function
 main() {
     log_section "Applying Kiosk Updates"
@@ -494,6 +516,9 @@ main() {
     if apply_package_updates; then
         critical_packages_installed=0
     fi
+
+    # Apply Xbox controller configuration
+    apply_xpad_config
 
     # Disable all power management features for industrial reliability
     log_section "Disabling Power Management"

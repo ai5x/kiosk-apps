@@ -181,19 +181,22 @@ main() {
     else
         log_info "Updates available - pulling changes..."
         plymouth_message "UPDATE_DOWNLOADING"
+
+        # Quit Plymouth to show update progress on console
+        log_info "Quitting Plymouth to show update progress..."
+        if command -v plymouth >/dev/null 2>&1 && plymouth --ping 2>/dev/null; then
+            plymouth quit --retain-splash 2>/dev/null || true
+        fi
+
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             NEW_SHORT="${NEW_COMMIT:0:8}"
             NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "$NEW_SHORT")
             log_info "✓ Updated to version: $NEW_VERSION (commit: $NEW_SHORT)"
-            plymouth_message "UPDATE_APPLYING"
-            sleep 1  # Brief pause to show applying message
-            plymouth_message "UPDATE_STATUS:applied"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
-            plymouth_message "UPDATE_STATUS:no_updates"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi

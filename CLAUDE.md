@@ -30,50 +30,33 @@ Every Boot:
 
 ## Version Management and Releases
 
-**When to create a release:**
-- After significant feature additions (new scripts, major configuration changes)
-- After bug fixes that affect kiosk stability or functionality
-- Before deploying to production kiosks
-- When you want to track a specific deployment version
+**IMPORTANT: Always bump version and tag EVERY commit before pushing.**
 
-**Release workflow:**
+The auto-updater uses git tags to determine if updates are available. Every commit MUST have a new version tag or kiosks won't see the update.
+
+**Standard workflow (use this for EVERY change):**
 ```bash
-# 1. Make your changes and test on a single kiosk first
+# 1. Make your changes
+# 2. Add and commit
 git add <files>
 git commit -m "Descriptive commit message"
 
-# 2. Create a git tag for the release
-# Use semantic versioning: vMAJOR.MINOR.PATCH
-# - MAJOR: Breaking changes (rare for config-only project)
-# - MINOR: New features, new scripts, significant updates
-# - PATCH: Bug fixes, small config changes
-git tag -a v1.2.3 -m "Release v1.2.3: Brief description of changes"
+# 3. ALWAYS bump version and tag (choose appropriate increment)
+git tag -a v1.2.4 -m "Release v1.2.4: Brief description"
 
-# 3. Push commits and tags
+# 4. Push commits and tags together
 git push && git push --tags
-
-# 4. Create GitHub release (optional but recommended)
-gh release create v1.2.3 --title "v1.2.3: Release title" --notes "
-## Changes
-- Feature/fix description
-- Another change
-- Bug fixes
-
-## Testing
-Tested on kiosk at 192.168.1.122
-"
 ```
 
-**Default version increment:**
+**Version increment guide:**
 - Configuration changes, script updates: **PATCH** (v1.0.0 → v1.0.1)
 - New features, new scripts: **MINOR** (v1.0.1 → v1.1.0)
 - Breaking changes: **MAJOR** (v1.1.0 → v2.0.0)
 
-**Quick release command:**
-```bash
-# After committing changes
-git tag v1.0.1 && git push --tags
-```
+**Never:**
+- ❌ Push commits without tags
+- ❌ Re-use the same tag on different commits
+- ❌ Skip version numbers
 
 **View current version:**
 ```bash

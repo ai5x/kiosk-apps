@@ -538,9 +538,21 @@ apply_xpad_config() {
 apply_plymouth_theme() {
     if [ -f "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" ]; then
         THEME_DIR="/usr/share/plymouth/themes/hs1-kiosk-theme"
+        THEME_UPDATED=false
 
         # Ensure theme directory exists
         mkdir -p "$THEME_DIR"
+
+        # Deploy theme configuration file (.plymouth)
+        if [ -f "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.plymouth" ]; then
+            if ! diff -q "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.plymouth" "${THEME_DIR}/hs1-kiosk-theme.plymouth" >/dev/null 2>&1; then
+                log_info "Updating Plymouth theme configuration..."
+                cp "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.plymouth" "${THEME_DIR}/hs1-kiosk-theme.plymouth"
+                chmod 644 "${THEME_DIR}/hs1-kiosk-theme.plymouth"
+                log_info "✓ Plymouth theme configuration updated"
+                THEME_UPDATED=true
+            fi
+        fi
 
         # Deploy theme script
         if ! diff -q "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" "${THEME_DIR}/hs1-kiosk-theme.script" >/dev/null 2>&1; then
@@ -548,8 +560,11 @@ apply_plymouth_theme() {
             cp "${REPO_DIR}/plymouth/hs1-kiosk-theme/hs1-kiosk-theme.script" "${THEME_DIR}/hs1-kiosk-theme.script"
             chmod 644 "${THEME_DIR}/hs1-kiosk-theme.script"
             log_info "✓ Plymouth theme script updated"
+            THEME_UPDATED=true
+        fi
 
-            # Note: logo.png is NOT deployed - it's portrait-specific and already on kiosk
+        if [ "$THEME_UPDATED" = true ]; then
+            # Note: logo.png is NOT deployed - it must already exist on kiosk
             if [ ! -f "${THEME_DIR}/logo.png" ]; then
                 log_warn "Plymouth logo.png missing at ${THEME_DIR}/logo.png"
                 log_warn "This is expected for first-time setup - logo must be deployed manually"
@@ -569,7 +584,7 @@ apply_plymouth_theme() {
         else
             log_info "✓ Plymouth theme unchanged"
 
-            # Ensure theme is activated even if script unchanged (idempotent)
+            # Ensure theme is activated even if files unchanged (idempotent)
             CURRENT_THEME=$(update-alternatives --query default.plymouth 2>/dev/null | grep "^Value:" | awk '{print $2}')
             if [ "$CURRENT_THEME" != "/usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.plymouth" ]; then
                 log_info "Plymouth theme not active, activating..."

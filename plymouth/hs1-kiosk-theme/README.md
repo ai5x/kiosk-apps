@@ -4,16 +4,25 @@ This theme provides boot progress checklist display for kiosk-apps.
 
 ## Files
 
+- `hs1-kiosk-theme.plymouth` - Plymouth theme configuration
 - `hs1-kiosk-theme.script` - Plymouth theme script with 6-stage checklist
-- `logo.png` - **NOT included in repo** - Deployed manually on kiosk (portrait orientation specific)
+- `logo.png` - **NOT included in repo** - Deployed manually on kiosk
 
 ## Installation
 
-The Plymouth theme script is deployed automatically via OTA updates by `apply-updates.sh`.
+The Plymouth theme files are deployed automatically via OTA updates by `apply-updates.sh`.
 
 The logo.png file must already exist on the kiosk at `/usr/share/plymouth/themes/hs1-kiosk-theme/logo.png`.
 
-**IMPORTANT**: Do NOT replace the kiosk's logo.png file. It is specifically sized/oriented for portrait display (1080x1920).
+## Display Orientation
+
+This theme works naturally with any screen orientation configured in Plymouth/KMS:
+- Uses natural vertical layout (checklist items stack vertically)
+- Adapts to whatever resolution Plymouth reports
+- No physical rotation compensation needed
+- Screen rotation should be configured at Plymouth/KMS level, not in the theme
+
+If your display needs rotation, configure it via kernel parameters or Plymouth configuration, not by modifying the theme layout.
 
 ## Message Protocol
 
@@ -40,12 +49,13 @@ The theme responds to these Plymouth messages sent by bootstrap scripts:
 4. Configuring display
 5. System ready
 
-## Portrait Display Optimization
+## Layout
 
-This theme is optimized for portrait display (1080x1920):
-- Left-aligned checklist at x=80
-- Larger vertical spacing (50px per item)
-- Logo positioned higher (y=100)
-- Detail messages indented under "Checking for updates"
+The theme uses a simple vertical layout that works with any resolution:
+- Logo centered horizontally at top (y=100)
+- Checklist left-aligned (x=80) below logo (y=400)
+- Vertical spacing: 50px per item
+- Spinner indicator moves vertically to show current stage
+- Detail messages indented below stage 1 (update check)
 
 After stage 5 completes, Plymouth exits and Chromium kiosk takes over.

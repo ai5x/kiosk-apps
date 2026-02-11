@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=HS1 Kiosk
+Description=Ai5x HS1 Kiosk Boot Theme with Progress Checklist
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/hs1-kiosk-theme
+ScriptFile=/usr/share/plymouth/themes/hs1-kiosk-theme/hs1-kiosk-theme.script

@@ -645,7 +645,8 @@ main() {
     apply_xpad_config
 
     # Apply Plymouth boot progress theme
-    apply_plymouth_theme
+    # DISABLED: Using text mode Plymouth instead of graphical theme
+    # apply_plymouth_theme
 
     # Apply permanent power management configurations
     log_section "Applying Power Management Configuration"

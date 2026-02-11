@@ -19,14 +19,14 @@ The logo.png file must already exist on the kiosk at `/usr/share/plymouth/themes
 This theme is designed for **90° clockwise physical rotation**:
 - Framebuffer renders in landscape (1920x1080)
 - Physical screen is rotated 90° clockwise to portrait
-- Text appears rotated 90° CW on physical screen
+- Plymouth text appears rotated 90° CW on physical screen
 - Items spread horizontally in landscape appear vertically in portrait
 
 **Boot configuration:**
-- `fbcon=rotate:1` in cmdline.txt (console rotation)
-- `display_rotate=3` in config.txt (physical display rotation)
+- `fbcon=rotate:1` in cmdline.txt (console rotation only, Plymouth doesn't respect this)
+- `display_rotate=3` in config.txt (physical display rotation 270° = 90° CW)
 
-The theme compensates for Plymouth not respecting fbcon rotation by positioning elements for the physical rotation.
+**Spacing:** Uses 220px horizontal spacing in landscape to prevent overlapping after text rotation (landscape text width becomes portrait text height when rotated 90° CW).
 
 ## Message Protocol
 

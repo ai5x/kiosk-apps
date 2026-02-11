@@ -16,13 +16,17 @@ The logo.png file must already exist on the kiosk at `/usr/share/plymouth/themes
 
 ## Display Orientation
 
-This theme works naturally with any screen orientation configured in Plymouth/KMS:
-- Uses natural vertical layout (checklist items stack vertically)
-- Adapts to whatever resolution Plymouth reports
-- No physical rotation compensation needed
-- Screen rotation should be configured at Plymouth/KMS level, not in the theme
+This theme is designed for **90° clockwise physical rotation**:
+- Framebuffer renders in landscape (1920x1080)
+- Physical screen is rotated 90° clockwise to portrait
+- Text appears rotated 90° CW on physical screen
+- Items spread horizontally in landscape appear vertically in portrait
 
-If your display needs rotation, configure it via kernel parameters or Plymouth configuration, not by modifying the theme layout.
+**Boot configuration:**
+- `fbcon=rotate:1` in cmdline.txt (console rotation)
+- `display_rotate=3` in config.txt (physical display rotation)
+
+The theme compensates for Plymouth not respecting fbcon rotation by positioning elements for the physical rotation.
 
 ## Message Protocol
 

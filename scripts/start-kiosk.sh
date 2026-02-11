@@ -114,6 +114,7 @@ chromium \
     --autoplay-policy=no-user-gesture-required \
     --start-fullscreen \
     --window-position=0,0 \
+    --window-size=1080,1920 \
     --disk-cache-size=104857600 \
     --disable-dev-shm-usage \
     --disable-software-rasterizer \

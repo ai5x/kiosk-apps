@@ -1,21 +1,24 @@
-// HS1 Kiosk Plymouth Theme Script - Portrait Checklist Version
-// Optimized for portrait display (1080x1920) with detailed update information
+// HS1 Kiosk Plymouth Theme Script - Portrait Physical Rotation Version
+// Works with landscape framebuffer (1920x1080) that's physically rotated 90° clockwise
+// The screen is portrait (1080x1920) but Plymouth renders in landscape
 
-// Window dimensions
-screen_width = Window.GetWidth();
-screen_height = Window.GetHeight();
+// Window dimensions (will be 1920x1080 in landscape, physically rotated to portrait)
+screen_width = Window.GetWidth();   // 1920 (becomes height after physical rotation)
+screen_height = Window.GetHeight(); // 1080 (becomes width after physical rotation)
 
 // Background color (dark)
 Window.SetBackgroundTopColor(0.1, 0.1, 0.1);
 Window.SetBackgroundBottomColor(0.05, 0.05, 0.05);
 
-// Load and display logo - centered at top for portrait
+// Load and display logo
+// After 90° clockwise rotation: left side of landscape becomes top of portrait
 logo.image = Image("logo.png");
 logo.sprite = Sprite(logo.image);
-logo.sprite.SetX(screen_width / 2 - logo.image.GetWidth() / 2);
-logo.sprite.SetY(100);  // Further down for portrait
+// Position logo at left side of landscape (becomes top after rotation)
+logo.sprite.SetX(100);
+logo.sprite.SetY(screen_height / 2 - logo.image.GetHeight() / 2);
 
-// Checklist configuration - simplified for kiosk
+// Checklist configuration
 checklist_items = [];
 checklist_items[0] = "Starting system";
 checklist_items[1] = "Checking for updates";
@@ -30,21 +33,25 @@ for (i = 0; i < 6; i++) {
     checklist_status[i] = 0;
 }
 
-// Portrait-optimized positioning
-checklist_y_start = 450;  // Start lower for portrait (more vertical space)
-checklist_x_left = 80;     // Left-aligned for better portrait layout
-line_height = 50;          // More spacing for portrait
+// Position for landscape that becomes portrait after 90° clockwise rotation
+// Landscape X (1920) → Portrait Y (after rotation)
+// Landscape Y (1080) → Portrait X (after rotation)
+// We want checklist in middle-lower area of portrait screen
+checklist_x_start = 900;   // Middle of landscape width (becomes middle of portrait height)
+checklist_y_left = 120;    // Left side of landscape (becomes top-left of portrait)
+line_height = 60;          // Horizontal spacing in landscape (becomes vertical in portrait)
 
 // Create sprites for checklist items
 checklist_sprites = [];
 for (i = 0; i < 6; i++) {
     checklist_sprites[i] = Sprite();
-    checklist_sprites[i].SetPosition(checklist_x_left, checklist_y_start + i * line_height, 100);
+    // Items spread horizontally in landscape, becomes vertical stack in portrait
+    checklist_sprites[i].SetPosition(checklist_x_start + i * line_height, checklist_y_left, 100);
 }
 
 // Spinner for continuous animation
 spinner_sprite = Sprite();
-spinner_sprite.SetPosition(checklist_x_left - 40, checklist_y_start, 100);
+spinner_sprite.SetPosition(checklist_x_start, checklist_y_left - 40, 100);
 spinner_index = 0;
 spinner_chars = [];
 spinner_chars[0] = "|";
@@ -52,15 +59,16 @@ spinner_chars[1] = "/";
 spinner_chars[2] = "-";
 spinner_chars[3] = "\\";
 
-// Detail message sprites (for update information)
+// Detail message sprites - positioned to the RIGHT of checklist in landscape
+// (becomes BELOW checklist after 90° rotation to portrait)
 detail_sprite_1 = Sprite();
-detail_sprite_1.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 20, 101);
+detail_sprite_1.SetPosition(checklist_x_start + line_height + 20, checklist_y_left + 300, 101);
 
 detail_sprite_2 = Sprite();
-detail_sprite_2.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 35, 101);
+detail_sprite_2.SetPosition(checklist_x_start + 2 * line_height + 20, checklist_y_left + 300, 101);
 
 detail_sprite_3 = Sprite();
-detail_sprite_3.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 50, 101);
+detail_sprite_3.SetPosition(checklist_x_start + 3 * line_height + 20, checklist_y_left + 300, 101);
 
 // Running mode flag
 running_mode = 0;
@@ -171,12 +179,12 @@ fun message_callback(text) {
 
     // Format: "UPDATE_DOWNLOADING" - Downloading update
     if (text == "UPDATE_DOWNLOADING") {
-        show_detail(3, "Downloading update...", 0.0, 0.8, 1.0);
+        show_detail(3, "Downloading...", 0.0, 0.8, 1.0);
     }
 
     // Format: "UPDATE_APPLYING" - Applying update
     if (text == "UPDATE_APPLYING") {
-        show_detail(3, "Applying update...", 0.0, 0.8, 1.0);
+        show_detail(3, "Applying...", 0.0, 0.8, 1.0);
     }
 
     // Format: "UPDATE_STATUS:no_updates" or "UPDATE_STATUS:applied"
@@ -185,10 +193,10 @@ fun message_callback(text) {
 
         if (status_text.SubString(0, 10) == "no_updates") {
             clear_details();
-            show_detail(1, "No updates found", 0.5, 0.5, 0.5);
+            show_detail(1, "No updates", 0.5, 0.5, 0.5);
         } else if (status_text.SubString(0, 7) == "applied") {
             clear_details();
-            show_detail(1, "Update complete ✓", 0.0, 0.8, 0.0);
+            show_detail(1, "Complete ✓", 0.0, 0.8, 0.0);
         }
     }
 }
@@ -199,11 +207,12 @@ fun refresh_callback() {
     spinner_index = (spinner_index + 1) % 4;
     spinner_image = Image.Text(spinner_chars[spinner_index], 0.5, 0.5, 0.5, 1, "Sans Bold 20");
     spinner_sprite.SetImage(spinner_image);
-    spinner_sprite.SetY(checklist_y_start + current_stage * line_height);
+    // Move spinner horizontally in landscape (becomes vertical in portrait)
+    spinner_sprite.SetX(checklist_x_start + current_stage * line_height);
 }
 
 Plymouth.SetMessageFunction(message_callback);
-Plymouth.SetRefreshRate(1.0);  // 1 second intervals - minimal CPU/memory impact
+Plymouth.SetRefreshRate(1.0);  // 1 second intervals
 Plymouth.SetRefreshFunction(refresh_callback);
 
 // Password prompt (minimal implementation)

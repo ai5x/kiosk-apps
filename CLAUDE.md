@@ -433,6 +433,42 @@ git push
 # Reboot kiosk to install
 ```
 
+## System Optimization
+
+### Docker Removal
+
+**Docker is NOT used on kiosks** and should be removed to keep the system lightweight.
+
+The kiosk runs Chromium directly on bare metal - no containers needed. Docker may be present if:
+- Installed in base Raspberry Pi OS
+- Leftover from testing
+- Accidentally installed
+
+**Remove Docker to improve:**
+- Boot time (no Docker daemon startup)
+- Memory usage (no Docker overhead ~200MB)
+- Disk space (saves ~167MB)
+
+**Removal commands (run once on each kiosk):**
+```bash
+# Disable and stop Docker services
+sudo systemctl disable docker.service docker.socket containerd.service
+sudo systemctl stop docker.service docker.socket containerd.service
+
+# Remove Docker packages
+sudo apt-get purge -y docker.io containerd runc
+sudo apt-get autoremove -y
+
+# Remove Docker data
+sudo rm -rf /var/lib/docker /etc/docker
+```
+
+**Verify Docker is gone:**
+```bash
+systemctl status docker  # Should show "Unit docker.service could not be found"
+docker --version         # Should show "command not found"
+```
+
 ## Repository Structure
 
 ```

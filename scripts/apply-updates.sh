@@ -644,9 +644,8 @@ main() {
     # Apply Xbox controller configuration
     apply_xpad_config
 
-    # Apply Plymouth boot progress theme
-    # DISABLED: Using text mode Plymouth instead of graphical theme
-    # apply_plymouth_theme
+    # Apply Plymouth boot progress theme (logo only)
+    apply_plymouth_theme
 
     # Apply permanent power management configurations
     log_section "Applying Power Management Configuration"

@@ -1,27 +1,27 @@
-// HS1 Kiosk Plymouth Theme Script - Checklist Version
-// Shows boot progress as a checklist with continuous animation
+// HS1 Kiosk Plymouth Theme Script - Portrait Checklist Version
+// Optimized for portrait display (1080x1920) with detailed update information
 
 // Window dimensions
-Window.GetWidth();
-Window.GetHeight();
+screen_width = Window.GetWidth();
+screen_height = Window.GetHeight();
 
 // Background color (dark)
 Window.SetBackgroundTopColor(0.1, 0.1, 0.1);
 Window.SetBackgroundBottomColor(0.05, 0.05, 0.05);
 
-// Load and display logo
+// Load and display logo - centered at top for portrait
 logo.image = Image("logo.png");
 logo.sprite = Sprite(logo.image);
-logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
-logo.sprite.SetY(30);
+logo.sprite.SetX(screen_width / 2 - logo.image.GetWidth() / 2);
+logo.sprite.SetY(100);  // Further down for portrait
 
-// Checklist configuration
+// Checklist configuration - simplified for kiosk
 checklist_items = [];
 checklist_items[0] = "Starting system";
 checklist_items[1] = "Checking for updates";
-checklist_items[2] = "Loading core services";
-checklist_items[3] = "Starting HS1 services";
-checklist_items[4] = "Final startup checks";
+checklist_items[2] = "Loading configuration";
+checklist_items[3] = "Installing packages";
+checklist_items[4] = "Configuring display";
 checklist_items[5] = "System ready";
 
 // Status tracking (0 = pending, 1 = in progress, 2 = complete)
@@ -30,17 +30,21 @@ for (i = 0; i < 6; i++) {
     checklist_status[i] = 0;
 }
 
+// Portrait-optimized positioning
+checklist_y_start = 450;  // Start lower for portrait (more vertical space)
+checklist_x_left = 80;     // Left-aligned for better portrait layout
+line_height = 50;          // More spacing for portrait
+
 // Create sprites for checklist items
 checklist_sprites = [];
-checklist_y_start = Window.GetHeight() / 2 - 60;
 for (i = 0; i < 6; i++) {
     checklist_sprites[i] = Sprite();
-    checklist_sprites[i].SetPosition(Window.GetWidth() / 2 - 200, checklist_y_start + i * 30, 100);
+    checklist_sprites[i].SetPosition(checklist_x_left, checklist_y_start + i * line_height, 100);
 }
 
 // Spinner for continuous animation
 spinner_sprite = Sprite();
-spinner_sprite.SetPosition(Window.GetWidth() / 2 + 220, checklist_y_start, 100);
+spinner_sprite.SetPosition(checklist_x_left - 40, checklist_y_start, 100);
 spinner_index = 0;
 spinner_chars = [];
 spinner_chars[0] = "|";
@@ -48,19 +52,15 @@ spinner_chars[1] = "/";
 spinner_chars[2] = "-";
 spinner_chars[3] = "\\";
 
-// Final status display sprites (global so they persist)
-status_sprite = Sprite();
-ip_sprite = Sprite();
+// Detail message sprites (for update information)
+detail_sprite_1 = Sprite();
+detail_sprite_1.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 20, 101);
 
-// Update status sprite (shows result next to "Checking for updates" row)
-update_status_sprite = Sprite();
-update_status_sprite.SetPosition(Window.GetWidth() / 2 + 50, checklist_y_start + 30, 100);
+detail_sprite_2 = Sprite();
+detail_sprite_2.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 35, 101);
 
-// Screensaver variables (for moving text around screen)
-screensaver_x = Window.GetWidth() / 2 - 100;
-screensaver_y = Window.GetHeight() / 2;
-screensaver_dx = 40;  // Horizontal velocity (pixels per second)
-screensaver_dy = 25;  // Vertical velocity (pixels per second)
+detail_sprite_3 = Sprite();
+detail_sprite_3.SetPosition(checklist_x_left + 40, checklist_y_start + line_height + 50, 101);
 
 // Running mode flag
 running_mode = 0;
@@ -83,7 +83,7 @@ fun update_checklist() {
             color_r = 0.5; color_g = 0.5; color_b = 0.5;
         }
 
-        image = Image.Text(text, color_r, color_g, color_b, 1.0, "Sans 14");
+        image = Image.Text(text, color_r, color_g, color_b, 1.0, "Sans Bold 16");
         checklist_sprites[i].SetImage(image);
     }
 }
@@ -100,44 +100,35 @@ fun complete_stage(stage_num) {
     }
 }
 
+// Clear detail messages
+fun clear_details() {
+    detail_sprite_1.SetOpacity(0);
+    detail_sprite_2.SetOpacity(0);
+    detail_sprite_3.SetOpacity(0);
+}
+
+// Show detail message
+fun show_detail(line, text, color_r, color_g, color_b) {
+    image = Image.Text(text, color_r, color_g, color_b, 1.0, "Sans 13");
+
+    if (line == 1) {
+        detail_sprite_1.SetImage(image);
+        detail_sprite_1.SetOpacity(1);
+    } else if (line == 2) {
+        detail_sprite_2.SetImage(image);
+        detail_sprite_2.SetOpacity(1);
+    } else if (line == 3) {
+        detail_sprite_3.SetImage(image);
+        detail_sprite_3.SetOpacity(1);
+    }
+}
+
 // Initialize first stage as in progress
 checklist_status[0] = 1;
 update_checklist();
 
 // Message callback - receives stage updates from bootstrap
 fun message_callback(text) {
-    // Check for RUNNING mode (final state)
-    if (text.SubString(0, 7) == "RUNNING") {
-        running_mode = 1;
-
-        // Hide all checklist items
-        for (i = 0; i < 6; i++) {
-            checklist_sprites[i].SetOpacity(0);
-        }
-
-        // Parse IP address
-        ip_address = "";
-        if (text.CharAt(7) == "|") {
-            ip_address = text.SubString(8, 99);
-        }
-
-        // Update "System Running" text - position will be updated by screensaver
-        status_image = Image.Text("System Running", 0.2, 1.0, 0.2, 1.0, "Sans Bold 20");
-        status_sprite.SetImage(status_image);
-        status_sprite.SetZ(10000);
-        status_sprite.SetOpacity(1);
-
-        // Update IP address text - position will be updated by screensaver
-        if (ip_address != "") {
-            ip_image = Image.Text(ip_address, 0.8, 0.8, 0.8, 1.0, "Sans 16");
-            ip_sprite.SetImage(ip_image);
-            ip_sprite.SetZ(10000);
-            ip_sprite.SetOpacity(1);
-        }
-
-        return;
-    }
-
     // Handle stage completion messages
     // Format: "STAGE:0" through "STAGE:5"
     if (text.SubString(0, 6) == "STAGE:") {
@@ -153,59 +144,62 @@ fun message_callback(text) {
         else if (stage_num_str == "5") stage_num = 5;
 
         complete_stage(stage_num);
+
+        // Clear details when moving to next stage
+        if (stage_num != 1) {
+            clear_details();
+        }
     }
 
-    // Handle update status messages
+    // Handle detailed update messages
+    // Format: "UPDATE_CHECK" - Starting update check
+    if (text == "UPDATE_CHECK") {
+        clear_details();
+    }
+
+    // Format: "UPDATE_CURRENT:v1.2.3" - Current version
+    if (text.SubString(0, 15) == "UPDATE_CURRENT:") {
+        version = text.SubString(15, 20);
+        show_detail(1, "Current: " + version, 0.7, 0.7, 0.7);
+    }
+
+    // Format: "UPDATE_REMOTE:v1.2.4" - Remote version
+    if (text.SubString(0, 14) == "UPDATE_REMOTE:") {
+        version = text.SubString(14, 20);
+        show_detail(2, "Available: " + version, 0.7, 0.7, 0.7);
+    }
+
+    // Format: "UPDATE_DOWNLOADING" - Downloading update
+    if (text == "UPDATE_DOWNLOADING") {
+        show_detail(3, "Downloading update...", 0.0, 0.8, 1.0);
+    }
+
+    // Format: "UPDATE_APPLYING" - Applying update
+    if (text == "UPDATE_APPLYING") {
+        show_detail(3, "Applying update...", 0.0, 0.8, 1.0);
+    }
+
     // Format: "UPDATE_STATUS:no_updates" or "UPDATE_STATUS:applied"
     if (text.SubString(0, 14) == "UPDATE_STATUS:") {
-        status_text = text.SubString(14, 99);
+        status_text = text.SubString(14, 20);
 
-        if (status_text == "no_updates") {
-            message_text = "Already running the latest version";
-            color_r = 0.5; color_g = 0.5; color_b = 0.5;  // Gray
-        } else if (status_text == "applied") {
-            message_text = "Updates applied";
-            color_r = 0.0; color_g = 0.8; color_b = 0.0;  // Green
-        } else {
-            return;  // Unknown status, ignore
+        if (status_text.SubString(0, 10) == "no_updates") {
+            clear_details();
+            show_detail(1, "No updates found", 0.5, 0.5, 0.5);
+        } else if (status_text.SubString(0, 7) == "applied") {
+            clear_details();
+            show_detail(1, "Update complete ✓", 0.0, 0.8, 0.0);
         }
-
-        status_image = Image.Text(message_text, color_r, color_g, color_b, 1.0, "Sans 12");
-        update_status_sprite.SetImage(status_image);
-        update_status_sprite.SetOpacity(1);
     }
 }
 
 // Refresh callback for animation (1 second intervals)
 fun refresh_callback() {
-    if (running_mode == 0) {
-        // During boot: show spinner next to current stage
-        spinner_index = (spinner_index + 1) % 4;
-        spinner_image = Image.Text(spinner_chars[spinner_index], 0.5, 0.5, 0.5, 1, "Sans Bold 20");
-        spinner_sprite.SetImage(spinner_image);
-        spinner_sprite.SetY(checklist_y_start + current_stage * 30);
-    } else {
-        // After boot: screensaver mode - move text around screen
-        spinner_sprite.SetOpacity(0);  // Hide spinner
-
-        // Update position
-        screensaver_x = screensaver_x + screensaver_dx;
-        screensaver_y = screensaver_y + screensaver_dy;
-
-        // Bounce off edges (with margin for text size)
-        if (screensaver_x < 50 || screensaver_x > Window.GetWidth() - 250) {
-            screensaver_dx = -screensaver_dx;
-        }
-        if (screensaver_y < 50 || screensaver_y > Window.GetHeight() - 80) {
-            screensaver_dy = -screensaver_dy;
-        }
-
-        // Update text positions (status and IP move together)
-        status_sprite.SetX(screensaver_x);
-        status_sprite.SetY(screensaver_y);
-        ip_sprite.SetX(screensaver_x);
-        ip_sprite.SetY(screensaver_y + 30);
-    }
+    // Show spinner next to current stage
+    spinner_index = (spinner_index + 1) % 4;
+    spinner_image = Image.Text(spinner_chars[spinner_index], 0.5, 0.5, 0.5, 1, "Sans Bold 20");
+    spinner_sprite.SetImage(spinner_image);
+    spinner_sprite.SetY(checklist_y_start + current_stage * line_height);
 }
 
 Plymouth.SetMessageFunction(message_callback);

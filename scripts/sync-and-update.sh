@@ -145,6 +145,9 @@ main() {
     log_info "Current version: $CURRENT_VERSION (commit: $CURRENT_SHORT)"
 
     # Stage 1: Checking for updates (in progress)
+    plymouth_message "UPDATE_CHECK"
+    plymouth_message "UPDATE_CURRENT:$CURRENT_VERSION"
+
     # Fetch latest changes and tags (using token if available)
     log_info "Fetching latest changes from $REPO_URL..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -170,22 +173,27 @@ main() {
     # Get remote version tag
     REMOTE_VERSION=$(git describe --tags origin/master 2>/dev/null || echo "$REMOTE_SHORT")
     log_info "Remote version: $REMOTE_VERSION (commit: $REMOTE_SHORT)"
+    plymouth_message "UPDATE_REMOTE:$REMOTE_VERSION"
 
     if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
         log_info "✓ Already up to date"
         plymouth_message "UPDATE_STATUS:no_updates"
     else
         log_info "Updates available - pulling changes..."
+        plymouth_message "UPDATE_DOWNLOADING"
         if git reset --hard origin/master 2>&1 | tee -a "$LOG_FILE"; then
             NEW_COMMIT=$(git rev-parse HEAD)
             NEW_SHORT="${NEW_COMMIT:0:8}"
             NEW_VERSION=$(git describe --tags --always 2>/dev/null || echo "$NEW_SHORT")
             log_info "✓ Updated to version: $NEW_VERSION (commit: $NEW_SHORT)"
+            plymouth_message "UPDATE_APPLYING"
+            sleep 1  # Brief pause to show applying message
             plymouth_message "UPDATE_STATUS:applied"
             log_info "Changes:"
             git log --oneline --no-decorate "${CURRENT_COMMIT}..${NEW_COMMIT}" | tee -a "$LOG_FILE"
         else
             log_error "Failed to update - rolling back"
+            plymouth_message "UPDATE_STATUS:no_updates"
             git reset --hard "$CURRENT_COMMIT" 2>&1 | tee -a "$LOG_FILE"
         fi
     fi

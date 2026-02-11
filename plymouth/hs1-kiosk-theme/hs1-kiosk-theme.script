@@ -39,9 +39,9 @@ for (i = 0; i < 6; i++) {
 // Landscape BOTTOM (high Y) → Portrait RIGHT
 
 // Position checklist in middle-right area of landscape (becomes middle-bottom of portrait)
-checklist_x_start = 950;  // Middle-right of landscape = middle-bottom of portrait
+checklist_x_start = 600;  // Start earlier in landscape for portrait top
 checklist_y_start = 150;  // Near top of landscape = near left of portrait
-item_spacing = 70;        // Horizontal spacing in landscape = vertical spacing in portrait
+item_spacing = 220;       // Wide spacing needed for rotated text height (landscape text width becomes portrait text height)
 
 // Create sprites for checklist items (spread horizontally in landscape)
 checklist_sprites = [];

@@ -149,18 +149,17 @@ main() {
     plymouth_message "UPDATE_CURRENT:$CURRENT_VERSION"
 
     # Fetch latest changes and tags (using token if available)
-    # Use --force for tags to prevent conflicts from blocking updates
     log_info "Fetching latest changes from $REPO_URL..."
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         REPO_URL_WITH_TOKEN=$(echo "$REPO_URL" | sed "s|https://|https://${GITHUB_TOKEN}@|")
-        if timeout 30 git fetch --tags --force "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
+        if timeout 30 git fetch --tags "$REPO_URL_WITH_TOKEN" master 2>&1 | tee -a "$LOG_FILE"; then
             log_info "✓ Fetch successful (using token)"
         else
             log_warn "Fetch failed - continuing with current version"
             exec "${REPO_DIR}/scripts/apply-updates.sh"
         fi
     else
-        if timeout 30 git fetch --tags --force origin master 2>&1 | tee -a "$LOG_FILE"; then
+        if timeout 30 git fetch --tags origin master 2>&1 | tee -a "$LOG_FILE"; then
             log_info "✓ Fetch successful"
         else
             log_warn "Fetch failed - continuing with current version"

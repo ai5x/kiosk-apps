@@ -114,12 +114,13 @@ chromium \
     --autoplay-policy=no-user-gesture-required \
     --start-fullscreen \
     --window-position=0,0 \
+    --window-size=1920,1080 \
     --disk-cache-size=104857600 \
     --disable-dev-shm-usage \
     --disable-software-rasterizer \
     --disable-gpu-driver-bug-workarounds \
     --enable-features=OverlayScrollbar \
-    --force-device-scale-factor=1 \
+    --force-device-scale-factor=0.75 \
     --ignore-certificate-errors \
     --allow-insecure-localhost \
     --js-flags="--max-old-space-size=2800" \
